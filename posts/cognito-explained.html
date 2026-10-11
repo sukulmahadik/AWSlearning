@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A beginner-friendly guide to Amazon Cognito: User Pools, Identity Pools, client IDs, PKCE, tokens and access control.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --fg: #17202c;
+  --muted: #566274;
+  --rule: #d9dfe8;
+  --accent: #2550a8;
+  --accent-soft: #e6edfa;
+  --seg-header: #b0442c;
+  --seg-payload: #6a3fb0;
+  --seg-sig: #18806a;
+  --code-bg: #eef1f6;
+  --note-bg: #fff8e6;
+  --note-rule: #d9a72e;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141b; --surface: #161d27; --fg: #e3e8ef; --muted: #9aa6b6; --rule: #2a3442;
+    --accent: #86a8f2; --accent-soft: #1c2a44; --seg-header: #f08a6e; --seg-payload: #b996f2; --seg-sig: #5fd0b4;
+    --code-bg: #1a222e; --note-bg: #2a2416; --note-rule: #c9982a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141b; --surface: #161d27; --fg: #e3e8ef; --muted: #9aa6b6; --rule: #2a3442;
+  --accent: #86a8f2; --accent-soft: #1c2a44; --seg-header: #f08a6e; --seg-payload: #b996f2; --seg-sig: #5fd0b4;
+  --code-bg: #1a222e; --note-bg: #2a2416; --note-rule: #c9982a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.0625rem; line-height: 1.65; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; max-width: 1180px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 240px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 70ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1180px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 64px 0 12px; text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; margin: 32px 0 8px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 72px 0 -40px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1em; }
+.lead { font-size: 1.1rem; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.35em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.85rem; line-height: 1.55; margin: 0 0 1.2em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; line-height: 1.45; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.85rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+</head>
+<body>
+<p class="back" style="max-width:1180px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero">
+    <div class="eyebrow">AWS identity · a beginner's guide</div>
+    <h1>Cognito, Explained</h1>
+    <p class="dek">User Pools, Identity Pools, client IDs, PKCE, tokens and access control, written for someone meeting these ideas for the first time.</p>
+    <div class="byline">Sukul Mahadik · October 11, 2026 · about 35 minutes</div>
+    <div>
+      <div class="jwt" aria-label="A Cognito access token, split into header, payload and signature"><span class="h">eyJraWQiOiJ1czEiLCJhbGciOiJSUzI1NiJ9</span><span class="dot">.</span><span class="p">eyJzdWIiOiJhMWIyYzNkNC0xMTExIiwiY29nbml0bzpncm91cHMiOlsiYW5hbHlzdCJdLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9yZGVycy1hcGkvcmVhZCJ9</span><span class="dot">.</span><span class="s">Kx9fQ2Lr7Vb0aM3pXn5hWzE4tY1uOcGd8sJ6eRkPq0A</span></div>
+      <div class="jwt-key"><span class="h"><b>Header</b> how it was signed</span><span class="p"><b>Payload</b> claims about the user</span><span class="s"><b>Signature</b> Cognito's tamper-proof seal</span></div>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <details open>
+      <summary>Contents</summary>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="#start-here">Start here: the basic ideas</a></li>
+        <li><a href="#big-picture">The big picture</a></li>
+        <li><a href="#pools">User Pools and Identity Pools</a></li>
+        <li><a href="#people-and-apps">People and apps in one pool</a></li>
+        <li><a href="#federation">User Pools and other providers</a></li>
+        <li><a href="#trust-chains">How providers trust each other</a></li>
+        <li><a href="#client-ids">Client IDs and secrets</a></li>
+        <li><a href="#pkce">PKCE</a></li>
+        <li><a href="#two-client-ids">Two sets of client IDs</a></li>
+        <li><a href="#google-two-ways">Two ways to add Google</a></li>
+        <li><a href="#tokens">Inside a token</a></li>
+        <li><a href="#iam-roles">IAM roles and Identity Pools</a></li>
+        <li><a href="#access-control">Controlling access</a></li>
+        <li><a href="#callbacks">Callback URLs and servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="#logout">Logging out</a></li>
+        <li><a href="#token-storage">Where to keep tokens</a></li>
+        <li><a href="#verify-tokens">Checking tokens in your API</a></li>
+        <li><a href="#login-ui">Login page or your own screens</a></li>
+        <li><a href="#triggers">Lambda triggers</a></li>
+        <li><a href="#multi-tenancy">Multi-tenancy</a></li>
+        <li><a href="#which-directory">Cognito vs Identity Center vs IAM</a></li>
+        <li><a href="#authorizers">API Gateway authorizers</a></li>
+        <li><a href="#migration">Moving existing users</a></li>
+        <li><a href="#linking">Account linking</a></li>
+        <li><a href="#regions">Regions and outages</a></li>
+        <li><a href="#pricing">Pricing tiers and limits</a></li>
+        <li><a href="#agentcore">Cognito and AgentCore Identity</a></li>
+        <li class="part">Reference</li>
+        <li><a href="#glossary">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+    <p class="lead">Amazon Cognito handles logins for the apps you build, so you don't have to store passwords or invent token formats yourself. It also confuses almost everyone the first time, because it has two products with similar names, two sets of client IDs, and three kinds of tokens. This guide builds up the ideas one at a time.</p>
+
+    <!-- START HERE -->
+    <h2 id="start-here">Start here: the basic ideas in plain words</h2>
+    <p>Everything later builds on these eight ideas.</p>
+
+    <h3>1. Authentication vs authorization</h3>
+    <ul>
+      <li><strong>Authentication</strong> means proving <em>who you are</em>. Typing a password, using Face ID, or clicking "Sign in with Google" are all authentication.</li>
+      <li><strong>Authorization</strong> means deciding <em>what you are allowed to do</em> once we know who you are. Can you read this file? Delete that record?</li>
+    </ul>
+    <div class="analogy"><span class="tag">Everyday version</span><p>At an airport, showing your passport is authentication. Your boarding pass deciding which plane and seat you get is authorization.</p></div>
+
+    <h3>2. Identity provider (IdP)</h3>
+    <p>An identity provider is any service that keeps user accounts and can vouch for them. Google, Microsoft Entra ID, Okta, Facebook and Apple are identity providers. When a website lets you "Sign in with Google", Google checks your password and then tells the website "yes, this is really Maya".</p>
+
+    <h3>3. Federation</h3>
+    <p>Federation means one system agrees to accept another system's word about who a user is. If your app federates with Google, your app stores no passwords; it trusts Google's confirmation instead.</p>
+
+    <h3>4. Token</h3>
+    <p>A token is a digital pass handed to you after you log in. Instead of sending your password with every request, your app sends the token. Like a wristband at a concert, it is quick to check, says who you are and what you may do, and expires after a while.</p>
+
+    <h3>5. JWT (JSON Web Token)</h3>
+    <p>A JWT, pronounced "jot", is the most common token format. It is a long string with three parts separated by dots, like the one at the top of this page:</p>
+    <ul>
+      <li>a <strong>header</strong>, saying how it was signed</li>
+      <li>a <strong>payload</strong>, holding facts about the user, called <strong>claims</strong></li>
+      <li>a <strong>signature</strong>, a tamper-proof seal from whoever issued it</li>
+    </ul>
+    <p>Anyone can read the payload, but nobody can change it without breaking the signature. That is how an API can trust a token without calling the issuer every time.</p>
+
+    <h3>6. OAuth 2.0 and OpenID Connect (OIDC)</h3>
+    <ul>
+      <li><strong>OAuth 2.0</strong> is a standard set of rules for letting an app get a token to access something on a user's behalf, without the app ever seeing the user's password. It is about authorization.</li>
+      <li><strong>OIDC</strong> is a thin layer on top of OAuth 2.0 that adds authentication: it defines an <strong>ID token</strong> that says who the user is.</li>
+    </ul>
+
+    <h3>7. Scopes and claims</h3>
+    <ul>
+      <li>A <strong>claim</strong> is a single fact inside a token, such as <code>email: maya@example.com</code> or <code>groups: admin</code>.</li>
+      <li>A <strong>scope</strong> is a named permission the app asked for and was granted, such as <code>orders-api/read</code>. Scopes travel inside the token as one of its claims.</li>
+    </ul>
+
+    <h3>8. IAM role and STS</h3>
+    <ul>
+      <li>In AWS, <strong>IAM</strong> (Identity and Access Management) decides who can do what to which AWS resource.</li>
+      <li>An <strong>IAM role</strong> is a named set of permissions, such as "may read files in this S3 bucket". Nobody owns a role permanently; you <em>borrow</em> it for a while.</li>
+      <li><strong>STS</strong> (Security Token Service) lends you a role: it hands out <strong>temporary credentials</strong> carrying that role's permissions, usually for about an hour.</li>
+    </ul>
+
+    <!-- BIG PICTURE -->
+    <h2 id="big-picture">The big picture</h2>
+    <p>Cognito has two main parts that do different jobs. A <strong>User Pool</strong> checks who the user is. An <strong>Identity Pool</strong> gives that user temporary permission to use AWS services.</p>
+    <div class="analogy"><span class="tag">An office building</span>
+      <ol>
+        <li>You arrive at the <strong>front desk</strong>. They check your ID, or phone your employer to confirm you work there, and print a <strong>visitor badge</strong>. That desk is the <strong>User Pool</strong>; the badge is a <strong>token</strong>.</li>
+        <li>Your employer vouching for you over the phone is <strong>Google or your company login</strong>. Those are <strong>identity providers</strong>.</li>
+        <li>The desk only serves approved companies, each with a registered account number. That number is a <strong>client ID</strong>: it identifies <em>which app</em> is asking.</li>
+        <li>To open doors, you take your badge to the <strong>key-card office</strong>, which gives you a card that opens certain floors and expires tonight. That office is the <strong>Identity Pool</strong>, the card is <strong>temporary AWS credentials</strong>, and the list of doors is an <strong>IAM role</strong>.</li>
+      </ol>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Piece</th><th>Plain-English job</th><th>What it hands out</th></tr></thead>
+      <tbody>
+        <tr><td>Identity provider</td><td>Checks the password and confirms who the user is (Google, Okta, or the User Pool itself)</td><td>Proof of identity</td></tr>
+        <tr><td>User Pool</td><td>Keeps your app's list of users and runs the login</td><td>ID, access and refresh tokens</td></tr>
+        <tr><td>App client</td><td>Identifies which application is asking for a login</td><td>Nothing; it is a registration</td></tr>
+        <tr><td>Identity Pool</td><td>Swaps a token for temporary AWS access</td><td>Temporary AWS credentials</td></tr>
+        <tr><td>IAM role</td><td>Lists the AWS actions those credentials allow</td><td>Permissions</td></tr>
+      </tbody>
+    </table></div>
+
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 760 322" role="img" aria-label="Your app trusts Cognito; Cognito trusts Google">
+          <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+          <text x="24" y="34" style="fill:var(--fg);font-family:var(--display);font-weight:700;font-size:16px">Your app trusts Cognito; Cognito trusts Google</text>
+          <g style="fill:none;stroke:var(--muted);stroke-width:1.25">
+            <path d="M196 130H294" marker-end="url(#arr)"/><path d="M466 130H564" marker-end="url(#arr)"/>
+            <path d="M110 158V242" marker-end="url(#arr)"/><path d="M380 158V242" marker-end="url(#arr)"/>
+            <path d="M466 270H564" marker-end="url(#arr)"/>
+          </g>
+          <g style="font-family:var(--display);font-size:13px">
+            <rect x="24" y="102" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="110" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Your app</text>
+            <text x="110" y="146" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">client of Cognito</text>
+            <rect x="294" y="102" width="172" height="56" rx="8" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:2"/>
+            <text x="380" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Cognito User Pool</text>
+            <text x="380" y="146" text-anchor="middle" style="fill:var(--fg);font-size:11.5px">broker: issues JWTs</text>
+            <rect x="564" y="102" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="650" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Google</text>
+            <text x="650" y="146" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">external IdP</text>
+            <rect x="24" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="110" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">Your API</text>
+            <text x="110" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">validates the JWT</text>
+            <rect x="294" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="380" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">Identity Pool</text>
+            <text x="380" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">picks an IAM role</text>
+            <rect x="564" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="650" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">AWS services</text>
+            <text x="650" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">S3, DynamoDB via IAM</text>
+          </g>
+          <g style="font-family:var(--display);font-size:11.5px;fill:var(--muted)">
+            <text x="245" y="90" text-anchor="middle">your app client ID</text>
+            <text x="515" y="90" text-anchor="middle">Cognito's Google client ID</text>
+            <text x="120" y="204">access token</text>
+            <text x="390" y="204">ID token</text>
+            <text x="515" y="260" text-anchor="middle">AWS credentials</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Each arrow is a trust relationship with its own registration. The User Pool is a client of Google and an identity provider to your app at the same time.</figcaption>
+    </figure>
+
+    <!-- POOLS -->
+    <h2 id="pools">User Pools and Identity Pools</h2>
+    <p>A User Pool answers <strong>"who is this person?"</strong> and an Identity Pool answers <strong>"what may this person do inside AWS?"</strong> They are separate services; you can use either alone, or chain them together.</p>
+
+    <h3>The User Pool: your app's login system</h3>
+    <p>A User Pool is a ready-made user database plus login service, run by AWS.</p>
+    <ul>
+      <li><strong>Stores users</strong>: usernames, emails, phone numbers, and passwords (as hashes, never plain text).</li>
+      <li><strong>Runs the login</strong>: sign-up, sign-in, "forgot password", verification, and multi-factor authentication (MFA).</li>
+      <li><strong>Accepts outside logins</strong>: users can "Sign in with Google" or with their company account.</li>
+      <li><strong>Groups users</strong> such as <code>admin</code> or <code>analyst</code>; the group names travel inside tokens.</li>
+      <li><strong>Hands out three tokens</strong> after login:
+        <ul>
+          <li>an <strong>ID token</strong>: who the user is (name, email)</li>
+          <li>an <strong>access token</strong>: what the app may do with your API</li>
+          <li>a <strong>refresh token</strong>: gets fresh tokens later without the password</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="note"><p>These tokens are meant for <strong>your own</strong> app and API. AWS services such as S3 or DynamoDB do not accept them directly.</p></div>
+
+    <h3>The Identity Pool: a converter from login to AWS access</h3>
+    <p>An Identity Pool exchanges a token that proves who the user is for <strong>temporary AWS credentials</strong>, so the app can call AWS services directly, for example uploading a photo straight to S3.</p>
+    <ol>
+      <li>The app hands over a token from a provider the Identity Pool trusts.</li>
+      <li>The Identity Pool checks the token is genuine.</li>
+      <li>It gives the user a permanent <strong>identity ID</strong> within the pool.</li>
+      <li>It decides which <strong>IAM role</strong> this user should get.</li>
+      <li>It asks STS for temporary credentials for that role, typically valid for one hour.</li>
+    </ol>
+    <p>It can also give limited access to <strong>guests</strong> who have not logged in, if you allow it.</p>
+
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>User Pool</th><th>Identity Pool</th></tr></thead>
+      <tbody>
+        <tr><td>Question it answers</td><td>Who are you?</td><td>What can you do in AWS?</td></tr>
+        <tr><td>Keeps a list of users?</td><td>Yes</td><td>No, only maps identities to IDs</td></tr>
+        <tr><td>Gives the app</td><td>ID, access and refresh tokens</td><td>Temporary AWS credentials</td></tr>
+        <tr><td>Who accepts it</td><td>Your app and your API</td><td>AWS services</td></tr>
+        <tr><td>Permissions expressed as</td><td>Groups, scopes, claims</td><td>IAM roles and policies</td></tr>
+        <tr><td>Guests?</td><td>No</td><td>Yes, optionally</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>How they are used together</h3>
+    <ol>
+      <li><strong>User Pool only</strong> (most common). The app calls <em>your</em> API with the access token; your server uses its own AWS permissions. Users never hold AWS credentials.</li>
+      <li><strong>User Pool, then Identity Pool.</strong> The app trades the ID token for AWS credentials and writes to AWS directly. Common in mobile and IoT apps.</li>
+      <li><strong>Identity Pool only.</strong> For guest access, or when users already log in with Google or a company system and you only need AWS access.</li>
+    </ol>
+
+    <!-- PEOPLE AND APPS -->
+    <h2 id="people-and-apps">One User Pool, two kinds of callers: people and apps</h2>
+    <p>A single User Pool can serve <strong>human users</strong> and <strong>apps that act on their own</strong>, such as background services or scheduled jobs. People are stored as <strong>user records</strong>; apps are <strong>app clients</strong> with their own client ID and secret.</p>
+    <p>Imagine an orders API. Customers call it from a website, and a nightly reporting job also calls it to pull totals. If both kinds of token come from one User Pool, your API checks just one issuer, one set of signing keys, and one list of scopes.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>Human user</th><th>App (machine-to-machine)</th></tr></thead>
+      <tbody>
+        <tr><td>Stored as</td><td>A user record</td><td>An app client; no user record exists</td></tr>
+        <tr><td>Proves itself with</td><td>Password, MFA, or Google / company login</td><td>Its own client ID and client secret</td></tr>
+        <tr><td>Login flow</td><td>Authorization code, through a browser and callback URL</td><td>Client credentials: one direct request, no browser</td></tr>
+        <tr><td>Tokens received</td><td>ID, access and refresh tokens</td><td>Access token only</td></tr>
+        <tr><td>Who the token names</td><td><code>sub</code> = user ID, plus username and groups</td><td><code>sub</code> = the app's client ID; no groups</td></tr>
+        <tr><td>Permissions from</td><td>Groups, custom claims, scopes</td><td>Scopes only</td></tr>
+        <tr><td>Example</td><td>Maya logs into the orders website</td><td>The nightly reporting job pulls totals</td></tr>
+      </tbody>
+    </table></div>
+    <h3>How an app logs in</h3>
+    <ol>
+      <li>Define a <strong>resource server</strong> for your API, such as <code>orders-api</code>, with scopes like <code>orders-api/read</code>.</li>
+      <li>Create an app client for the job <strong>with a client secret</strong>, allowing only the <strong>client credentials</strong> flow and only <code>orders-api/read</code>.</li>
+      <li>The job sends its client ID, secret and requested scope to <code>/oauth2/token</code>.</li>
+      <li>Cognito returns an access token whose <code>scope</code> claim says <code>orders-api/read</code>.</li>
+      <li>The job calls the API with it; the API checks it exactly as it would a person's token.</li>
+      <li>When it expires, the job simply asks again.</li>
+    </ol>
+    <h3>Keeping them separate</h3>
+    <ul>
+      <li>Use <strong>separate app clients</strong> for websites (authorization code) and services (client credentials).</li>
+      <li>Give each service its <strong>own</strong> app client, so you can trace and cut off one without affecting others.</li>
+      <li>Grant each app client <strong>only the scopes it needs</strong>.</li>
+      <li>An app's token has no groups, so a rule like "only admins may delete" never matches an app.</li>
+      <li>Machine-to-machine needs a User Pool <strong>domain</strong>, and AWS bills its token requests separately from human sign-ins.</li>
+    </ul>
+
+    <!-- FEDERATION -->
+    <h2 id="federation">How a User Pool works with other identity providers</h2>
+    <p>A User Pool is an identity provider in its own right, and it can also <strong>hand the password check to other providers</strong> such as Google or a company login. Either way, your app receives the same Cognito tokens.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Kind</th><th>Examples</th><th>In plain terms</th></tr></thead>
+      <tbody>
+        <tr><td>The User Pool itself</td><td>Username and password in Cognito</td><td>Users create an account in your app</td></tr>
+        <tr><td>Social</td><td>Google, Apple, Facebook, Login with Amazon</td><td>A personal account the user already has</td></tr>
+        <tr><td>Company (SAML)</td><td>Microsoft Entra ID, ADFS, Okta, Ping</td><td>A work account; SAML is an older XML-based standard</td></tr>
+        <tr><td>Any OIDC provider</td><td>Auth0, Okta, Salesforce</td><td>Any service following OpenID Connect</td></tr>
+      </tbody>
+    </table></div>
+    <h3>What happens when a user picks "Sign in with Google"</h3>
+    <ol>
+      <li>The User Pool sends the user to Google's login page.</li>
+      <li>Google checks the password. Cognito never sees it.</li>
+      <li>Google sends the user back to the User Pool with proof of identity.</li>
+      <li>The User Pool copies chosen details, such as email and name (<strong>attribute mapping</strong>).</li>
+      <li>It creates a <strong>federated user</strong> (username like <code>Google_1098…</code>) or links to an existing account.</li>
+      <li>It issues its <strong>own</strong> tokens. The ID token's <code>identities</code> claim records that the user came via Google.</li>
+    </ol>
+    <p>Each app client chooses which providers to offer: an internal tool might allow only the company login, while a customer app offers Google and Apple.</p>
+
+    <!-- TRUST CHAINS -->
+    <h2 id="trust-chains">How identity providers trust each other</h2>
+    <p>Identity providers can be chained: one accepts another's proof, then issues its <strong>own</strong> proof to the next system. Each only trusts its immediate neighbour.</p>
+    <div class="analogy"><span class="tag">Everyday version</span><p>Your employer confirms your identity to a travel agency, which issues a ticket. The airline checks only the ticket; it never calls your employer.</p></div>
+    <ul>
+      <li><strong>Trust goes one way.</strong> A User Pool trusts Google; Google knows nothing about your app.</li>
+      <li><strong>A broker sits in the middle.</strong> Cognito User Pools, Okta, Auth0 and Entra ID can act like an ordinary app toward the provider above and like an identity provider toward the app below.</li>
+      <li><strong>Chains can be long.</strong> Entra ID → User Pool → app → Identity Pool → STS. Each hop checks the previous signature before issuing its own.</li>
+      <li><strong>Formats change along the way.</strong> SAML in, JWT out; the broker translates.</li>
+      <li><strong>The Identity Pool only receives.</strong> It trusts providers but issues AWS credentials, not identity tokens.</li>
+      <li><strong>One person, several logins</strong> can be linked to one user record.</li>
+    </ul>
+    <p><strong>Rule of thumb:</strong> let your app trust one broker, and let the broker handle every other provider.</p>
+
+    <!-- CLIENT IDS -->
+    <h2 id="client-ids">Client IDs and client secrets</h2>
+    <p>A <strong>client ID</strong> is an application's name tag; a <strong>client secret</strong> is that application's password. They identify the <em>app</em>, not the <em>user</em>.</p>
+    <p>Before an app can use a User Pool, you register it as an <strong>app client</strong>. A website, a mobile app and a background service would usually be three app clients.</p>
+    <ul>
+      <li><strong>Client ID</strong>: a public random string, sent with every login request. Safe in browser code.</li>
+      <li><strong>Client secret</strong>: proves the request really comes from that app. Only for apps on a <strong>server you control</strong> (<em>confidential clients</em>). <strong>Never</strong> put one in browser code or a mobile app (<em>public clients</em>); anyone can dig it out.</li>
+    </ul>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>App client setting</th><th>What it means</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Allowed OAuth flows</td><td>Which login procedures the app may use</td><td>Authorization code; client credentials</td></tr>
+        <tr><td>Allowed scopes</td><td>The most the app can ask for</td><td><code>openid</code>, <code>email</code>, <code>orders-api/read</code></td></tr>
+        <tr><td>Callback URLs</td><td>Where users may be sent back after login</td><td><code>https://app.example.com/callback</code></td></tr>
+        <tr><td>Identity providers</td><td>Which login buttons appear</td><td>Cognito accounts and Google</td></tr>
+        <tr><td>Token lifetimes</td><td>How long tokens stay valid</td><td>Access token: 60 minutes</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Type of app</th><th>Secret?</th><th>Login procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Website with its own server</td><td>Yes</td><td>Authorization code (plus PKCE)</td></tr>
+        <tr><td>Browser-only site, mobile app, CLI</td><td>No</td><td>Authorization code with PKCE</td></tr>
+        <tr><td>Background service, no user</td><td>Yes</td><td>Client credentials</td></tr>
+      </tbody>
+    </table></div>
+
+    <!-- PKCE -->
+    <h2 id="pkce">PKCE: protecting logins for apps that can't keep a secret</h2>
+    <p><strong>PKCE</strong> (Proof Key for Code Exchange, pronounced "pixy") is a one-time secret an app invents for <strong>each</strong> login, so only the app that started a login can finish it. It does the job of a client secret for apps that cannot safely hold one.</p>
+    <h3>The problem it solves</h3>
+    <p>After sign-in, Cognito sends the browser back with a short-lived <strong>authorization code</strong>, which the app swaps for tokens.</p>
+    <ul>
+      <li>A website <strong>with a server</strong> proves itself during that swap with its client secret.</li>
+      <li>A <strong>mobile app, browser-only site or CLI</strong> has no safe place for a secret, so it has none.</li>
+      <li>Without a secret, anyone who <strong>intercepts the code</strong> could swap it, because the client ID is public.</li>
+    </ul>
+    <h3>How it works</h3>
+    <ol>
+      <li><strong>Invent a secret.</strong> The app creates a long random <strong>code verifier</strong>, e.g. <code>dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk</code>, kept in memory.</li>
+      <li><strong>Scramble it.</strong> SHA-256 turns it into the <strong>code challenge</strong>, which cannot be reversed.</li>
+      <li><strong>Send only the scrambled version</strong> to <code>/oauth2/authorize</code> with <code>code_challenge_method=S256</code>. Cognito remembers it.</li>
+      <li><strong>User signs in</strong>; the browser returns with the code.</li>
+      <li><strong>Reveal the original.</strong> The app calls <code>/oauth2/token</code> with the code and the original verifier.</li>
+      <li><strong>Cognito checks the match</strong> and only then issues tokens.</li>
+    </ol>
+    <p>A thief holding the code never saw the verifier, so the code is useless to them.</p>
+    <div class="analogy"><span class="tag">Cloakroom</span><p>You tear a raffle ticket in half; the attendant keeps one half, you keep the other. The slip they hand you is not enough on its own: to collect the coat you must produce the matching half.</p></div>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>Client ID</th><th>Client secret</th><th>PKCE verifier</th></tr></thead>
+      <tbody>
+        <tr><td>Proves</td><td>Which app is asking</td><td>The request really is from that app</td><td>Whoever finishes the login started it</td></tr>
+        <tr><td>Secret?</td><td>No</td><td>Yes, long-term</td><td>Yes, one login only</td></tr>
+        <tr><td>Created by</td><td>Cognito</td><td>Cognito</td><td>The app, fresh each time</td></tr>
+        <tr><td>Used by</td><td>Every app</td><td>Server apps and services</td><td>Apps without a secret; recommended for all browser logins</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li><strong>Browser-only, mobile, CLI</strong>: client ID + PKCE, no secret.</li>
+      <li><strong>Website with a server</strong>: client ID + secret, plus PKCE (OAuth 2.1 expects PKCE for every authorization-code login).</li>
+      <li><strong>Machine-to-machine</strong>: client ID + secret. PKCE does not apply; there is no browser or code.</li>
+    </ul>
+    <p>Libraries such as AWS Amplify, <code>oidc-client-ts</code>, AppAuth and Authlib handle PKCE for you.</p>
+
+    <!-- TWO CLIENT IDS -->
+    <h2 id="two-client-ids">The confusing part: two sets of client IDs</h2>
+    <p>Adding "Sign in with Google" creates <strong>two different client IDs</strong>, because there are two relationships: your app is a customer of Cognito, and Cognito is a customer of Google.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>Registration 1</th><th>Registration 2</th></tr></thead>
+      <tbody>
+        <tr><td>Client</td><td>Your app</td><td>Cognito</td></tr>
+        <tr><td>Server</td><td>Cognito</td><td>Google</td></tr>
+        <tr><td>Created in</td><td>Cognito console → User Pool → App clients</td><td>Google Cloud Console → Credentials</td></tr>
+        <tr><td>Values end up</td><td>In your app's configuration</td><td>In the User Pool's Google provider settings</td></tr>
+        <tr><td>Return URL</td><td><code>https://app.example.com/callback</code></td><td>Cognito's <code>…/oauth2/idpresponse</code></td></tr>
+      </tbody>
+    </table></div>
+    <h3>The whole journey</h3>
+    <ol>
+      <li>The user clicks <strong>Login</strong>; the app sends the browser to Cognito with <strong>your app's client ID</strong>.</li>
+      <li>Cognito shows the buttons allowed for that app; the user picks Google.</li>
+      <li>Cognito sends the browser to Google with <strong>Cognito's Google client ID</strong>.</li>
+      <li>The user signs in on Google's page; Google returns a code to Cognito.</li>
+      <li>Cognito swaps that code with Google using its Google client secret.</li>
+      <li>Cognito creates or finds the user and returns a <strong>new</strong> code to your app.</li>
+      <li>Your app swaps it for tokens using <strong>your</strong> client ID and secret, or PKCE.</li>
+      <li>Optionally, the app takes the ID token to an Identity Pool for AWS access.</li>
+    </ol>
+
+    <!-- GOOGLE TWO WAYS -->
+    <h2 id="google-two-ways">Two ways to bring in Google (or any IdP)</h2>
+    <p><strong>Option A: Google → User Pool → Identity Pool.</strong> Google is a login option on the User Pool; your app always holds Cognito tokens.</p>
+    <p><strong>Option B: Google → Identity Pool directly.</strong> No User Pool. The app gets Google's token itself and passes it in <code>Logins</code>, e.g. <code>{"accounts.google.com": "&lt;google-token&gt;"}</code>.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>A: through the User Pool</th><th>B: direct to Identity Pool</th></tr></thead>
+      <tbody>
+        <tr><td>Your own user list</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Tokens for your API</td><td>Yes, one Cognito format</td><td>Only Google's</td></tr>
+        <tr><td>Groups for permissions</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Login page, MFA, triggers</td><td>Yes</td><td>No</td></tr>
+        <tr><td>Setup effort</td><td>Higher</td><td>Lower</td></tr>
+        <tr><td>Fits</td><td>Apps with their own API</td><td>Small mobile or IoT apps needing only AWS</td></tr>
+      </tbody>
+    </table></div>
+
+    <!-- TOKENS -->
+    <h2 id="tokens">What is inside a token: claims and scopes</h2>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Token</th><th>Job</th><th>Read by</th><th>Default lifetime</th></tr></thead>
+      <tbody>
+        <tr><td>ID token</td><td>Who the user is</td><td>Your app's screens, Identity Pool</td><td>1 hour (5 min to 1 day)</td></tr>
+        <tr><td>Access token</td><td>What this request may do</td><td>Your API</td><td>1 hour (5 min to 1 day)</td></tr>
+        <tr><td>Refresh token</td><td>Get new tokens without logging in</td><td>Your app, in the background</td><td>30 days (1 hour to 10 years)</td></tr>
+      </tbody>
+    </table></div>
+    <p>The payload is only encoded, <strong>not encrypted</strong>: anyone holding the token can read it, so never put secrets in claims. The signature is checked with Cognito's public keys at <code>/.well-known/jwks.json</code>.</p>
+    <h3>A decoded access token</h3>
+<pre><code>{
+  "sub": "a1b2c3d4-1111-2222-3333-444455556666",
+  "cognito:groups": ["analyst"],
+  "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AbC123",
+  "client_id": "4abcexampleclientid",
+  "token_use": "access",
+  "scope": "openid email orders-api/read",
+  "auth_time": 1760160000,
+  "iat": 1760160000,
+  "exp": 1760163600,
+  "jti": "5e6f...",
+  "username": "Google_1098..."
+}</code></pre>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Claim</th><th>Plain meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>sub</code></td><td>The user's permanent unique ID; key your data on this, not email</td></tr>
+        <tr><td><code>iss</code></td><td>Which User Pool issued it; reject any other</td></tr>
+        <tr><td><code>client_id</code> / <code>aud</code></td><td>Which app it was issued to (access / ID token)</td></tr>
+        <tr><td><code>token_use</code></td><td><code>access</code> or <code>id</code>, so one can't pose as the other</td></tr>
+        <tr><td><code>scope</code></td><td>Permissions granted (access token only)</td></tr>
+        <tr><td><code>cognito:groups</code></td><td>The user's groups</td></tr>
+        <tr><td><code>exp</code>, <code>iat</code>, <code>auth_time</code></td><td>Expiry, issue time, actual login time (seconds since 1 Jan 1970)</td></tr>
+        <tr><td><code>jti</code></td><td>Unique ID of this token, for revocation</td></tr>
+        <tr><td><code>email</code>, <code>custom:…</code>, <code>identities</code></td><td>User details in the ID token; <code>identities</code> names the outside provider</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Scopes: permissions with names</h3>
+    <ul>
+      <li><strong>Standard OIDC</strong>: <code>openid</code> (needed for an ID token), <code>email</code>, <code>phone</code>, <code>profile</code>.</li>
+      <li><strong>Cognito's own</strong>: <code>aws.cognito.signin.user.admin</code> lets users manage their own account.</li>
+      <li><strong>Custom</strong>: define a <strong>resource server</strong> for your API and scopes like <code>orders-api/read</code>.</li>
+    </ul>
+    <p>Cognito grants only scopes that are both requested and allowed on the app client. Claims describe the user and token; scopes describe what the token may be used for. The <em>pre token generation</em> trigger can add claims, and on its newer version, scopes.</p>
+
+    <!-- IAM ROLES -->
+    <h2 id="iam-roles">IAM roles and Identity Pools</h2>
+    <p>An Identity Pool has no permissions of its own. It <strong>picks an IAM role</strong> for each user and gets temporary credentials for it; the role's rules decide what the user can do.</p>
+    <ul>
+      <li>An <strong>IAM policy</strong> is a written rule; an <strong>IAM role</strong> bundles policies.</li>
+      <li>Borrowing a role is <strong>assuming</strong> it. The <strong>trust policy</strong> says who may borrow; <strong>permission policies</strong> say what the borrower can do.</li>
+    </ul>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>How the role is chosen</th><th>How it works</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Default roles</td><td>One role for signed-in users, one for guests</td><td>Everyone gets <code>AppUserRole</code></td></tr>
+        <tr><td>Role from the token</td><td>User Pool groups carry a role</td><td>Group <code>admin</code> → <code>AdminRole</code></td></tr>
+        <tr><td>Rules</td><td>"If this claim has this value, use this role"</td><td><code>department = finance</code> → <code>FinanceDataRole</code></td></tr>
+      </tbody>
+    </table></div>
+    <h3>The trust policy</h3>
+<pre><code>"Condition": {
+  "StringEquals": { "cognito-identity.amazonaws.com:aud": "us-east-1:&lt;your-identity-pool-id&gt;" },
+  "ForAnyValue:StringLike": { "cognito-identity.amazonaws.com:amr": "authenticated" }
+}</code></pre>
+    <p>In plain words: only Cognito may hand out this role, only for this Identity Pool, and only to users who logged in.</p>
+    <h3>One role, each user sees only their own data</h3>
+<pre><code>{
+  "Effect": "Allow",
+  "Action": ["s3:GetObject", "s3:PutObject"],
+  "Resource": "arn:aws:s3:::my-bucket/users/${cognito-identity.amazonaws.com:sub}/*"
+}</code></pre>
+    <p>AWS fills in each user's identity ID, so everyone is confined to <code>users/&lt;their-id&gt;/</code>. With <strong>ABAC</strong>, the Identity Pool can also tag credentials with details like <code>department</code> for policies to check.</p>
+
+    <!-- ACCESS CONTROL -->
+    <h2 id="access-control">How Cognito controls what a signed-in user can access</h2>
+    <p>Cognito mostly <strong>labels</strong> users rather than <strong>guarding</strong> resources. It writes groups, scopes and facts into the token; API Gateway, your code or IAM reads them and allows or blocks.</p>
+    <div class="analogy"><span class="tag">Conference badge</span><p>The badge printer doesn't stand at each door. The door staff read "Speaker" or "Attendee" and decide.</p></div>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Controlled</th><th>How</th><th>Enforced by</th></tr></thead>
+      <tbody>
+        <tr><td>Which apps and buttons</td><td>App client settings</td><td>Cognito</td></tr>
+        <tr><td>Whether login is allowed</td><td>Disabled accounts, MFA, pre-login checks</td><td>Cognito</td></tr>
+        <tr><td>The most an app can ask for</td><td>Allowed scopes per app client</td><td>Cognito</td></tr>
+        <tr><td>What a request may do</td><td><code>scope</code> claim</td><td>API Gateway or your code</td></tr>
+        <tr><td>Role-based rules</td><td><code>cognito:groups</code></td><td>Your code</td></tr>
+        <tr><td>Detail-based rules</td><td>Custom claims like <code>custom:tenant_id</code></td><td>Your code or Amazon Verified Permissions</td></tr>
+        <tr><td>Direct AWS access</td><td>IAM role from the Identity Pool</td><td>IAM</td></tr>
+        <tr><td>How long access lasts</td><td>Token lifetimes, revocation</td><td>Cognito and your API</td></tr>
+      </tbody>
+    </table></div>
+    <p>Always check every token in your API, and grant the least access needed. For machine-to-machine callers, scopes are the entire permission system.</p>
+
+    <!-- CALLBACKS -->
+    <h2 id="callbacks">Callback URLs and callback servers</h2>
+    <p>A <strong>callback URL</strong> is where the login service sends the browser after login. Something must be listening there; during testing, that is a small temporary web server on your own computer, a <strong>callback server</strong>.</p>
+    <ol>
+      <li>Your app sends the user's <strong>browser</strong> to the login page.</li>
+      <li>The user logs in there, not in your app.</li>
+      <li>The browser is sent <strong>back</strong> with a short-lived code: <code>https://app.example.com/callback?code=abc123&amp;state=xyz</code>.</li>
+      <li>Whatever listens there swaps the code for tokens.</li>
+    </ol>
+    <p>Cognito only redirects to <strong>registered</strong> URLs, and the app checks that <code>state</code> comes back unchanged, which blocks forged responses.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>Testing</th><th>Production</th></tr></thead>
+      <tbody>
+        <tr><td>Listening</td><td>Temporary server at <code>http://localhost:8080/callback</code></td><td>A <code>/callback</code> route on your site or backend</td></tr>
+        <tr><td>Registered URL</td><td>Plain <code>http</code> allowed only for localhost</td><td><code>https://</code> on your domain</td></tr>
+        <tr><td>Runs for</td><td>The few seconds of login</td><td>Always</td></tr>
+        <tr><td>Mobile</td><td>n/a</td><td>An app link such as <code>myapp://callback</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>A notebook or script has no website, so the browser has nowhere to land; a tiny localhost server fixes that. <code>gcloud auth login</code> and <code>gh auth login</code> do exactly this.</p>
+    <p>In agent platforms such as AgentCore Identity, the provider returns first to the platform's callback, which stores the token, then to <em>your</em> app's callback so your app can confirm the approving user is the user the agent works for. Background services using client credentials or API keys need no callback at all.</p>
+
+    <!-- PART 2 -->
+    <div class="part-label">Part 2 · Practical questions when you build</div>
+
+    <h2 id="logout">Logging out and cancelling tokens</h2>
+    <p>An access token that has been handed out <strong>keeps working until it expires</strong>, because your API checks signatures locally and never asks Cognito.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Action</th><th>Does</th><th>Doesn't</th></tr></thead>
+      <tbody>
+        <tr><td>App deletes tokens</td><td>The user looks logged out</td><td>Stop a copy stolen earlier</td></tr>
+        <tr><td><code>RevokeToken</code></td><td>Refresh token can't get new tokens; Cognito's APIs reject its access tokens</td><td>Stop your API accepting them until expiry</td></tr>
+        <tr><td><code>GlobalSignOut</code></td><td>Cancels refresh tokens on every device</td><td>Same limit</td></tr>
+        <tr><td>Cognito <code>/logout</code></td><td>Clears Cognito's session cookie</td><td>Sign the user out of Google</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Keep access tokens <strong>short-lived</strong> (5 to 15 minutes).</li>
+      <li>On logout, delete tokens, revoke the refresh token, and visit <code>/logout</code>.</li>
+      <li>For instant cut-off, keep a small block list of revoked <code>jti</code> values or users.</li>
+    </ul>
+
+    <h2 id="token-storage">Where to keep tokens in a browser or app</h2>
+    <p>Whoever holds a token can act as the user. For websites, the safest common pattern keeps tokens <strong>on your server</strong> and gives the browser only a secure cookie. The main threat is <strong>XSS</strong>: an attacker's script on your page can read anything your JavaScript can.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Where</th><th>Risk</th><th>Good for</th></tr></thead>
+      <tbody>
+        <tr><td><code>localStorage</code></td><td>Easily stolen by XSS; persists</td><td>Prototypes only</td></tr>
+        <tr><td>Memory</td><td>Readable by XSS while open; lost on refresh</td><td>Single-page apps that refresh silently</td></tr>
+        <tr><td>HTTP-only cookie</td><td>Not readable by script; needs CSRF protection</td><td>Most production sites</td></tr>
+        <tr><td>Backend-for-frontend</td><td>Browser never sees a token</td><td>The most secure option</td></tr>
+      </tbody>
+    </table></div>
+    <p>Mobile apps use Keychain (Apple) or Keystore (Android). Services keep the client secret in a secrets manager. Refresh tokens deserve the most care; rotate them where you can.</p>
+
+    <h2 id="verify-tokens">Checking tokens in your API: a worked example</h2>
+    <ol>
+      <li><strong>Signature</strong> against the pool's cached public keys.</li>
+      <li><strong>Issuer</strong> equals <code>https://cognito-idp.&lt;region&gt;.amazonaws.com/&lt;pool-id&gt;</code>.</li>
+      <li><strong>Expiry</strong> in the future.</li>
+      <li><strong>Kind</strong>: <code>token_use</code> is <code>access</code>.</li>
+      <li><strong>App</strong>: <code>client_id</code> is yours.</li>
+      <li><strong>Permission</strong>: the needed scope is present.</li>
+    </ol>
+    <h3>JavaScript, with <code>aws-jwt-verify</code></h3>
+<pre><code>import { CognitoJwtVerifier } from "aws-jwt-verify";
+
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: "us-east-1_AbC123",
+  tokenUse: "access",              <span class="c">// check 4</span>
+  clientId: "4abcexampleclientid", <span class="c">// check 5</span>
+  scope: "orders-api/read",        <span class="c">// check 6</span>
+});
+
+<span class="c">// Checks 1-3 happen inside verify(); it throws if anything is wrong.</span>
+const claims = await verifier.verify(tokenFromAuthorizationHeader);</code></pre>
+    <h3>Python, with <code>PyJWT</code></h3>
+<pre><code>import jwt
+from jwt import PyJWKClient
+
+POOL_ID = "us-east-1_AbC123"
+CLIENT_ID = "4abcexampleclientid"
+ISSUER = f"https://cognito-idp.us-east-1.amazonaws.com/{POOL_ID}"
+jwks = PyJWKClient(f"{ISSUER}/.well-known/jwks.json")  <span class="c"># caches keys</span>
+
+def verify_access_token(token: str, required_scope: str) -> dict:
+    key = jwks.get_signing_key_from_jwt(token).key           <span class="c"># check 1</span>
+    claims = jwt.decode(token, key, algorithms=["RS256"],
+                        issuer=ISSUER,                         <span class="c"># check 2, 3</span>
+                        options={"verify_aud": False})         <span class="c"># access tokens have no aud</span>
+    if claims.get("token_use") != "access":                   <span class="c"># check 4</span>
+        raise PermissionError("not an access token")
+    if claims.get("client_id") != CLIENT_ID:                  <span class="c"># check 5</span>
+        raise PermissionError("unknown app")
+    if required_scope not in claims.get("scope", "").split(): <span class="c"># check 6</span>
+        raise PermissionError("missing scope")
+    return claims</code></pre>
+    <p>Common mistakes: decoding without checking the signature, accepting ID tokens at the API, and fetching keys on every request.</p>
+
+    <h2 id="login-ui">Cognito's login page vs building your own screens</h2>
+    <p><strong>Managed login</strong> (formerly the hosted UI) gives you ready-made, brandable sign-up, sign-in, MFA and social buttons over standard OAuth. <strong>Your own screens</strong> call Cognito through the SDK or Amplify, using <strong>SRP</strong> so the password is never sent, with passwordless options on paid tiers. Social buttons still redirect through Cognito, because Google's password must be typed on Google's page.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>Managed login</th><th>Your own screens</th></tr></thead>
+      <tbody>
+        <tr><td>Effort</td><td>Low</td><td>Higher</td></tr>
+        <tr><td>Look</td><td>Branding within Cognito's layout</td><td>Anything</td></tr>
+        <tr><td>Best for</td><td>Most apps and internal tools</td><td>Consumer apps needing an exact brand match</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2 id="triggers">Lambda triggers: customizing each step</h2>
+    <p>A Lambda trigger is your own code that Cognito runs at a fixed moment during sign-up or sign-in.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Trigger</th><th>Runs</th><th>Typical use</th></tr></thead>
+      <tbody>
+        <tr><td>Pre sign-up</td><td>Before an account is created</td><td>Allow certain domains; link Google to an existing account</td></tr>
+        <tr><td>Post confirmation</td><td>After verification</td><td>Create the user's row in your database</td></tr>
+        <tr><td>Pre authentication</td><td>Before each sign-in</td><td>Block users suspended elsewhere</td></tr>
+        <tr><td>Post authentication</td><td>After sign-in</td><td>Record login history</td></tr>
+        <tr><td>Pre token generation</td><td>Before tokens are issued</td><td>Add <code>tenant_id</code>; adjust scopes</td></tr>
+        <tr><td>User migration</td><td>Unknown user signs in</td><td>Move users from an old system</td></tr>
+        <tr><td>Custom message</td><td>Before email or SMS</td><td>Your own wording and language</td></tr>
+        <tr><td>Custom auth challenge</td><td>During a custom flow</td><td>Magic links, CAPTCHAs</td></tr>
+      </tbody>
+    </table></div>
+    <p>Triggers must answer within about 5 seconds, and a failure becomes a login error. Customizing access tokens needs a paid tier.</p>
+
+    <h2 id="multi-tenancy">Apps with many customer companies (multi-tenancy)</h2>
+    <p>Each customer company is a <strong>tenant</strong>. The usual start is <strong>one shared User Pool with a tenant ID on every user</strong>.</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Design</th><th>Pros</th><th>Cons</th></tr></thead>
+      <tbody>
+        <tr><td>Shared pool + <code>custom:tenant_id</code></td><td>Simplest; scales</td><td>Shared password and MFA rules</td></tr>
+        <tr><td>Shared pool + group per tenant</td><td>Easy to see membership</td><td>Groups also mean roles; confusing</td></tr>
+        <tr><td>Shared pool + app client per tenant</td><td>Tenants bring their own company login</td><td>More configuration</td></tr>
+        <tr><td>Pool per tenant</td><td>Strongest isolation</td><td>More to manage; API trusts many issuers; pool limits</td></tr>
+      </tbody>
+    </table></div>
+    <p>Make <code>custom:tenant_id</code> read-only for apps, take the tenant from the <strong>token</strong> rather than a request parameter, and pass it as a tag for IAM if users get AWS access.</p>
+
+    <h2 id="which-directory">User Pool vs IAM Identity Center vs IAM users</h2>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th></th><th>Cognito User Pool</th><th>IAM Identity Center</th><th>IAM user</th></tr></thead>
+      <tbody>
+        <tr><td>For</td><td>Users of apps you build</td><td>Your staff in AWS and work apps</td><td>Legacy permanent AWS logins</td></tr>
+        <tr><td>Log into</td><td>Your app or API</td><td>AWS console, CLI, SSO apps</td><td>AWS directly</td></tr>
+        <tr><td>Credentials</td><td>App tokens</td><td>Short-term AWS credentials</td><td>Long-term keys</td></tr>
+        <tr><td>Example</td><td>Maya signs into a shop</td><td>A data engineer queries Athena</td><td>An old script with a hard-coded key</td></tr>
+      </tbody>
+    </table></div>
+    <p>Programs running inside AWS (Lambda, EC2, ECS) should use an attached <strong>IAM role</strong>, not a user.</p>
+
+    <h2 id="authorizers">Choosing an API Gateway authorizer</h2>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Authorizer</th><th>Checks</th><th>Choose when</th></tr></thead>
+      <tbody>
+        <tr><td>Cognito (REST APIs)</td><td>Signature, expiry, issuer, scopes</td><td>Cognito tokens, scope rules</td></tr>
+        <tr><td>JWT (HTTP APIs)</td><td>Same plus audience/client ID</td><td>As above, on HTTP APIs</td></tr>
+        <tr><td>Lambda</td><td>Whatever your code decides</td><td>Rules beyond scopes</td></tr>
+        <tr><td>IAM (SigV4)</td><td>The caller's IAM role</td><td>Callers hold Identity Pool credentials</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><p>Send access tokens, not ID tokens. The REST Cognito authorizer accepts ID tokens when no scopes are configured; configure scopes so only access tokens pass.</p></div>
+
+    <h2 id="migration">Moving existing users into Cognito</h2>
+    <p>Passwords usually can't be copied, because good systems store only hashes Cognito can't reuse.</p>
+    <ul>
+      <li><strong>Bulk CSV import</strong>: no passwords; everyone resets on first login.</li>
+      <li><strong>User migration trigger</strong>: on an unknown sign-in, your Lambda checks the old system; if correct, Cognito creates the user with the same password. Users notice nothing.</li>
+    </ul>
+    <p>Typical plan: enable the trigger, switch login to Cognito, bulk-import stragglers months later, then retire the old system. The trigger needs a sign-in method that sends the password (not SRP), and <code>sub</code> values are new, so keep a mapping from old IDs.</p>
+
+    <h2 id="linking">Account linking: avoiding duplicate users</h2>
+    <p>By default each way of signing in is a <strong>separate user</strong>: Maya with a password and Maya via Google become two accounts. Link them with <code>AdminLinkProviderForUser</code>, usually from the pre sign-up trigger, before the duplicate is created.</p>
+    <ul>
+      <li>Link only when the provider says the email is <strong>verified</strong>, or an attacker could take over the account.</li>
+      <li>Merging two existing users later is a manual data job.</li>
+      <li>Choose username, email or phone sign-in at the start; it can't be changed after the pool exists.</li>
+    </ul>
+
+    <h2 id="regions">Regions, outages and backups</h2>
+    <p>A User Pool lives in <strong>one AWS region</strong>. If Cognito there is down, new sign-ins fail, though users with unexpired access tokens keep working. Cognito has not offered built-in cross-region replication, a long-standing request (<a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack</a>); check current docs.</p>
+    <ul>
+      <li>Keep the pool's settings as code (CloudFormation, CDK, Terraform).</li>
+      <li>Export users regularly; passwords can't be exported, so restores need resets.</li>
+      <li>For high resilience, run a standby pool in a second region, with your API accepting both issuers.</li>
+    </ul>
+
+    <h2 id="pricing">Pricing tiers and limits</h2>
+    <p>Each User Pool is on one tier, switchable at any time (<a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">AWS pricing</a>):</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tier</th><th>Adds</th></tr></thead>
+      <tbody>
+        <tr><td>Lite</td><td>Sign-up, password sign-in, social providers</td></tr>
+        <tr><td>Essentials</td><td>Managed login, passwordless, customizable access tokens</td></tr>
+        <tr><td>Plus</td><td>Threat protection: adaptive sign-in, compromised-password detection, activity log export</td></tr>
+      </tbody>
+    </table></div>
+    <ul>
+      <li>Lite and Essentials include 10,000 free monthly active users for direct and social sign-ins, but only 50 for SAML/OIDC users.</li>
+      <li>Machine-to-machine is billed per app client and token request, with no free tier.</li>
+      <li>SMS and email bill through SNS and SES. Identity Pools cost nothing extra.</li>
+      <li>APIs have requests-per-second quotas; higher rates are a paid add-on.</li>
+    </ul>
+
+    <h2 id="agentcore">Where AgentCore Identity fits next to Cognito</h2>
+    <p>Amazon Bedrock <strong>AgentCore Identity</strong> doesn't replace Cognito. Cognito still logs in the person; AgentCore Identity manages identity around an AI agent (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AWS docs</a>).</p>
+    <div class="table-wrap wide"><table>
+      <thead><tr><th>Question</th><th>Answered by</th></tr></thead>
+      <tbody>
+        <tr><td>Who may call the agent? (inbound)</td><td>Cognito issues the token; AgentCore checks it</td></tr>
+        <tr><td>Who is the agent itself?</td><td>AgentCore gives each agent a workload identity</td></tr>
+        <tr><td>Which outside services may it use for the user? (outbound)</td><td>AgentCore's token vault stores per-user tokens and runs consent flows</td></tr>
+      </tbody>
+    </table></div>
+    <p>A user signs in via Cognito, calls the agent, the agent asks AgentCore for the user's Google Drive token, and calls Drive. Machine callers use client credentials from the same User Pool.</p>
+
+    <!-- GLOSSARY -->
+    <h2 id="glossary">Glossary</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Access token</td><td>Token your API reads to decide what a request may do</td></tr>
+        <tr><td>App client</td><td>An application's registration inside a User Pool</td></tr>
+        <tr><td>Authentication</td><td>Proving who you are</td></tr>
+        <tr><td>Authorization</td><td>Deciding what you may do</td></tr>
+        <tr><td>Authorization code</td><td>Short-lived ticket returned after login, swapped for tokens</td></tr>
+        <tr><td>Authorizer</td><td>API Gateway's check that runs before your code</td></tr>
+        <tr><td>Broker</td><td>Trusts upstream providers and issues its own tokens downstream</td></tr>
+        <tr><td>Callback URL</td><td>Where the browser returns after login</td></tr>
+        <tr><td>Claim</td><td>One fact inside a token</td></tr>
+        <tr><td>Client credentials</td><td>Login where an app signs in as itself</td></tr>
+        <tr><td>Client ID / secret</td><td>An app's public name tag / private password</td></tr>
+        <tr><td>Federation</td><td>Accepting another system's word about who a user is</td></tr>
+        <tr><td>IAM role</td><td>A borrowable bundle of AWS permissions</td></tr>
+        <tr><td>ID token</td><td>Token telling the app who the user is</td></tr>
+        <tr><td>Identity Pool</td><td>Swaps a login token for temporary AWS credentials</td></tr>
+        <tr><td>Identity provider</td><td>Holds accounts and confirms identities</td></tr>
+        <tr><td>JWT</td><td>Signed, readable token: header, payload, signature</td></tr>
+        <tr><td>MAU</td><td>Monthly active user; the basis of pricing</td></tr>
+        <tr><td>OAuth 2.0 / OIDC</td><td>Standards for delegated access / login on top of it</td></tr>
+        <tr><td>PKCE</td><td>One-time secret protecting logins for apps without a client secret</td></tr>
+        <tr><td>Refresh token</td><td>Long-lived token for getting new tokens</td></tr>
+        <tr><td>Resource server</td><td>Your API, defined in a User Pool, with custom scopes</td></tr>
+        <tr><td>SAML</td><td>Older XML login standard used by company providers</td></tr>
+        <tr><td>Scope</td><td>A named permission in an access token</td></tr>
+        <tr><td>SRP</td><td>Proves a password is known without sending it</td></tr>
+        <tr><td>STS</td><td>AWS service issuing temporary role credentials</td></tr>
+        <tr><td>Tenant</td><td>One customer company in a shared app</td></tr>
+        <tr><td>User Pool</td><td>Cognito's user directory and login service</td></tr>
+        <tr><td>XSS</td><td>An attacker's script running on your web page</td></tr>
+      </tbody>
+    </table></div>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>
