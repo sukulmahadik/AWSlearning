@@ -10,36 +10,25 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
 :root {
-  --bg: #f5f7fa;
+  --bg: #fbfcfe;
   --surface: #ffffff;
-  --fg: #17202c;
-  --muted: #566274;
-  --rule: #d9dfe8;
-  --accent: #2550a8;
-  --accent-soft: #e6edfa;
-  --seg-header: #b0442c;
-  --seg-payload: #6a3fb0;
-  --seg-sig: #18806a;
-  --code-bg: #eef1f6;
-  --note-bg: #fff8e6;
-  --note-rule: #d9a72e;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0f141b; --surface: #161d27; --fg: #e3e8ef; --muted: #9aa6b6; --rule: #2a3442;
-    --accent: #86a8f2; --accent-soft: #1c2a44; --seg-header: #f08a6e; --seg-payload: #b996f2; --seg-sig: #5fd0b4;
-    --code-bg: #1a222e; --note-bg: #2a2416; --note-rule: #c9982a; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0f141b; --surface: #161d27; --fg: #e3e8ef; --muted: #9aa6b6; --rule: #2a3442;
-  --accent: #86a8f2; --accent-soft: #1c2a44; --seg-header: #f08a6e; --seg-payload: #b996f2; --seg-sig: #5fd0b4;
-  --code-bg: #1a222e; --note-bg: #2a2416; --note-rule: #c9982a; color-scheme: dark;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }

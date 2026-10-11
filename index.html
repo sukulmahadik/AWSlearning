@@ -11,13 +11,11 @@
 <style>
 /* Layout: a single narrow column; each post is one entry with date, title and summary. */
 :root {
-  --bg: #f5f7fa; --surface: #ffffff; --fg: #17202c; --muted: #566274; --rule: #d9dfe8; --accent: #2550a8;
+  --bg: #fbfcfe; --surface: #ffffff; --fg: #1b2533; --muted: #5a6678; --rule: #dde4ef; --accent: #1f6feb;
   --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0f141b; --surface: #161d27; --fg: #e3e8ef; --muted: #9aa6b6; --rule: #2a3442; --accent: #86a8f2; color-scheme: dark; }
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.0625rem; line-height: 1.6; }
