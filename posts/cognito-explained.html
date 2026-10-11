@@ -111,7 +111,7 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
     <div class="eyebrow">AWS identity · a beginner's guide</div>
     <h1>Cognito, Explained</h1>
     <p class="dek">User Pools, Identity Pools, client IDs, PKCE, tokens and access control, written for someone meeting these ideas for the first time.</p>
-    <div class="byline">Sukul Mahadik · October 11, 2026 · about 65 minutes</div>
+    <div class="byline">Sukul Mahadik · October 11, 2026 · about 70 minutes</div>
     <div>
       <div class="jwt" aria-label="A Cognito access token, split into header, payload and signature"><span class="h">eyJraWQiOiJ1czEiLCJhbGciOiJSUzI1NiJ9</span><span class="dot">.</span><span class="p">eyJzdWIiOiJhMWIyYzNkNC0xMTExIiwiY29nbml0bzpncm91cHMiOlsiYW5hbHlzdCJdLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9yZGVycy1hcGkvcmVhZCJ9</span><span class="dot">.</span><span class="s">Kx9fQ2Lr7Vb0aM3pXn5hWzE4tY1uOcGd8sJ6eRkPq0A</span></div>
       <div class="jwt-key"><span class="h"><b>Header</b> how it was signed</span><span class="p"><b>Payload</b> claims about the user</span><span class="s"><b>Signature</b> Cognito's tamper-proof seal</span></div>
@@ -134,6 +134,7 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
         <li><a href="#the-confusing-part-two-sets-of-client-ids">The confusing part: two sets of client IDs</a></li>
         <li><a href="#two-ways-to-bring-in-google-or-any-idp">Two ways to bring in Google (or any IdP)</a></li>
         <li><a href="#what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</a></li>
+        <li><a href="#resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</a></li>
         <li><a href="#iam-roles-and-identity-pools">IAM roles and Identity Pools</a></li>
         <li><a href="#how-cognito-controls-what-a-signed-in-user-can-access">How Cognito controls what a signed-in user can access</a></li>
         <li><a href="#callback-urls-and-callback-servers">Callback URLs and callback servers</a></li>
@@ -891,6 +892,123 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
 <li><strong>Custom scopes for your API</strong>: you define a <strong>resource server</strong> in the User Pool to represent your API, then invent scopes for it, written <code>&lt;api-name&gt;/&lt;permission&gt;</code>, for example <code>orders-api/read</code> and <code>orders-api/write</code>. Your API then checks for the scope it needs before doing the work.</li>
 </ul>
 <p><strong>Claims vs scopes in one line:</strong> claims are facts about the user and the token; scopes are the specific things the token may be used for. A Lambda function hooked into Cognito (the <em>pre token generation</em> trigger) can add or change claims, and with its newer version, scopes, just before the token is issued.</p>
+<h2 id="resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</h2>
+<p>A <strong>resource server</strong> is a record in the User Pool that represents <strong>your API</strong>, and <strong>custom scopes</strong> are the named permissions that API understands, such as <code>orders-api/read</code>. Defining them lets Cognito put those permission names into access tokens, so your API can check "may this caller read orders?" without asking Cognito anything.</p>
+<p><strong>Where the name comes from</strong></p>
+<p>OAuth splits the world into roles. The <strong>authorization server</strong> issues tokens; here that is the Cognito User Pool. The <strong>resource server</strong> holds the data and accepts tokens; here that is your API, such as an orders service. Cognito does not host or run your API. A resource server in Cognito is only a <em>description</em> of it: a name, an identifier and a list of scopes.</p>
+<p><strong>What a resource server contains</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifier</td>
+<td>A unique ID for the API. Often a URL, but any string works; it becomes the first half of every scope name</td>
+<td><code>orders-api</code> or <code>https://api.example.com/orders</code></td>
+</tr>
+<tr>
+<td>Name</td>
+<td>A friendly label shown in the console</td>
+<td>Orders API</td>
+</tr>
+<tr>
+<td>Scopes</td>
+<td>Short permission names, each with a description</td>
+<td><code>read</code> ("Read orders"), <code>write</code> ("Create and change orders")</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cognito joins the identifier and the scope name with a slash to form the <strong>full scope string</strong> that appears in tokens and in app client settings: <code>orders-api/read</code>, <code>orders-api/write</code>. With a URL identifier you would get <code>https://api.example.com/orders/read</code>.</p>
+<p>One User Pool can describe several APIs, each with its own resource server: <code>orders-api/read</code>, <code>billing-api/refund</code>, <code>reports-api/export</code>, and so on.</p>
+<p><strong>An analogy</strong></p>
+<p>Think of a hotel. The front desk (the User Pool) programs key cards (access tokens). Each department, such as the gym, the spa or the business lounge, is a resource server. Each department publishes which doors it has (its scopes): <code>spa/pool</code>, <code>spa/sauna</code>. The front desk writes onto your card which doors it may open; each department's door reader checks the card itself, without phoning the front desk.</p>
+<p><strong>How it works, from setup to API call</strong></p>
+<ol>
+<li><strong>Describe your API.</strong> Create a resource server with an identifier and its scopes. Use names that match the actions the API actually distinguishes, such as <code>read</code> and <code>write</code>, or <code>orders.read</code> and <code>orders.refund</code> for finer control.</li>
+<li><strong>Allow scopes per app.</strong> On each app client, tick the scopes that app may ever receive (the <em>allowed OAuth scopes</em>), and turn on the OAuth flows it uses. This is the ceiling: an app cannot get a scope that is not allowed here.</li>
+<li><strong>Make sure the pool has a domain.</strong> Custom scopes are issued by the OAuth endpoints (<code>/oauth2/authorize</code> and <code>/oauth2/token</code>), which live on the User Pool's domain.</li>
+<li><strong>The app asks for scopes.</strong> It lists them in the <code>scope</code> parameter of its login or token request, separated by spaces: <code>scope=openid orders-api/read</code>.</li>
+<li><strong>Cognito filters.</strong> It grants only scopes that are both <strong>requested</strong> and <strong>allowed</strong> for that app client. Anything else is silently dropped, or the request fails if a scope does not exist.</li>
+<li><strong>The scopes land in the access token.</strong> The token's <code>scope</code> claim lists what was granted, for example <code>"scope": "openid orders-api/read"</code>.</li>
+<li><strong>Your API checks the scope.</strong> Before handling <code>GET /orders</code> it confirms the token carries <code>orders-api/read</code>; before <code>POST /orders</code> it requires <code>orders-api/write</code>. API Gateway can do this for you: set <em>authorization scopes</em> on a REST API method that uses a Cognito authorizer, or on an HTTP API route that uses a JWT authorizer.</li>
+</ol>
+<p><strong>Setting it up with the AWS CLI</strong></p>
+<pre><code class="language-bash"># 1. Describe the API and its scopes
+aws cognito-idp create-resource-server \
+  --user-pool-id us-east-1_AbC123 \
+  --identifier orders-api \
+  --name &quot;Orders API&quot; \
+  --scopes ScopeName=read,ScopeDescription=&quot;Read orders&quot; \
+           ScopeName=write,ScopeDescription=&quot;Create and change orders&quot;
+
+# 2. Create an app client for a background service that may only read
+aws cognito-idp create-user-pool-client \
+  --user-pool-id us-east-1_AbC123 \
+  --client-name nightly-report-job \
+  --generate-secret \
+  --allowed-o-auth-flows client_credentials \
+  --allowed-o-auth-scopes &quot;orders-api/read&quot; \
+  --allowed-o-auth-flows-user-pool-client
+</code></pre>
+<p><strong>The service then asks for a token</strong></p>
+<pre><code class="language-bash">curl -X POST &quot;https://my-app.auth.us-east-1.amazoncognito.com/oauth2/token&quot; \
+  -H &quot;Content-Type: application/x-www-form-urlencoded&quot; \
+  -u &quot;&lt;client-id&gt;:&lt;client-secret&gt;&quot; \
+  -d &quot;grant_type=client_credentials&amp;scope=orders-api/read&quot;
+</code></pre>
+<p>The reply contains an <code>access_token</code> whose <code>scope</code> claim is <code>orders-api/read</code>. If this job asked for <code>orders-api/write</code>, Cognito would refuse, because that scope is not allowed on its app client.</p>
+<p><strong>How it differs for people and for apps</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>People (authorization code flow)</th>
+<th>Apps (client credentials flow)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scopes available</td>
+<td>Standard OIDC scopes (<code>openid</code>, <code>email</code>, <code>profile</code>, <code>phone</code>), <code>aws.cognito.signin.user.admin</code>, and custom scopes</td>
+<td>Custom scopes only</td>
+</tr>
+<tr>
+<td>What the app asks for</td>
+<td>Usually a mix, e.g. <code>openid email orders-api/read</code></td>
+<td>Only custom scopes, e.g. <code>orders-api/read</code></td>
+</tr>
+<tr>
+<td>If no scope is requested</td>
+<td>Cognito grants all scopes allowed on the app client</td>
+<td>Cognito grants all custom scopes allowed on the app client</td>
+</tr>
+<tr>
+<td>Who decides per caller</td>
+<td>The app client's allowed list, plus groups or a Lambda trigger for per-user rules (see below)</td>
+<td>The app client's allowed list; each service gets its own app client</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Things that surprise people</strong></p>
+<ul>
+<li><strong>Scopes are per app, not per user.</strong> Every user who signs in through an app client can receive the same allowed scopes. Cognito does not, by itself, give <code>orders-api/write</code> to Alice but not to Bob. For per-user differences, use <strong>groups</strong> (the <code>cognito:groups</code> claim) checked in your API, or a <strong>pre token generation</strong> Lambda trigger that adds or removes scopes per user (this needs the Essentials or Plus tier).</li>
+<li><strong>API-based sign-in does not include custom scopes.</strong> If your app signs users in through the SDK's sign-in calls (for example <code>InitiateAuth</code>) rather than the OAuth endpoints, the access token carries only <code>aws.cognito.signin.user.admin</code>. To get custom scopes, sign in through managed login or the <code>/oauth2/authorize</code> endpoint, or add them with the pre token generation trigger.</li>
+<li><strong>Scopes are labels, not enforcement.</strong> Cognito only writes them into the token. If your API or API Gateway does not check them, they protect nothing.</li>
+<li><strong>Updating an app client replaces its settings.</strong> The <code>update-user-pool-client</code> command resets any setting you leave out to its default, so include the full list of scopes, flows and callback URLs every time you update.</li>
+<li><strong>Removing a scope does not cancel tokens already issued.</strong> Existing access tokens keep their old scopes until they expire.</li>
+</ul>
+<p><strong>Choosing good scopes</strong></p>
+<ul>
+<li>Name scopes after <strong>what the API does</strong>, such as <code>orders-api/read</code> and <code>orders-api/refund</code>, not after who uses them (avoid <code>orders-api/admin-team</code>).</li>
+<li>Start coarse (<code>read</code> and <code>write</code>) and split later only where you truly need different access.</li>
+<li>Give each app client <strong>only</strong> the scopes it uses. A reporting job never needs <code>write</code>.</li>
+<li>Keep one resource server per API, so each API team owns its own scope list.</li>
+</ul>
 <h2 id="iam-roles-and-identity-pools">IAM roles and Identity Pools</h2>
 <p>An Identity Pool has no permissions of its own. Its job is to <strong>pick an IAM role</strong> for each user and get temporary credentials for it, so the role's rules decide exactly what the user can do in AWS.</p>
 <p><strong>A quick refresher on IAM roles</strong></p>
