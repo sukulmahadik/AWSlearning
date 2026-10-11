@@ -111,7 +111,7 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
     <div class="eyebrow">AWS identity · a beginner's guide</div>
     <h1>Cognito, Explained</h1>
     <p class="dek">User Pools, Identity Pools, client IDs, PKCE, tokens and access control, written for someone meeting these ideas for the first time.</p>
-    <div class="byline">Sukul Mahadik · October 11, 2026 · about 62 minutes</div>
+    <div class="byline">Sukul Mahadik · October 11, 2026 · about 65 minutes</div>
     <div>
       <div class="jwt" aria-label="A Cognito access token, split into header, payload and signature"><span class="h">eyJraWQiOiJ1czEiLCJhbGciOiJSUzI1NiJ9</span><span class="dot">.</span><span class="p">eyJzdWIiOiJhMWIyYzNkNC0xMTExIiwiY29nbml0bzpncm91cHMiOlsiYW5hbHlzdCJdLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9yZGVycy1hcGkvcmVhZCJ9</span><span class="dot">.</span><span class="s">Kx9fQ2Lr7Vb0aM3pXn5hWzE4tY1uOcGd8sJ6eRkPq0A</span></div>
       <div class="jwt-key"><span class="h"><b>Header</b> how it was signed</span><span class="p"><b>Payload</b> claims about the user</span><span class="s"><b>Signature</b> Cognito's tamper-proof seal</span></div>
@@ -1038,6 +1038,68 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
 <li>Whatever is listening at that URL picks up the code and swaps it with Cognito for real tokens.</li>
 </ol>
 <p>The code is a claim ticket, not the prize: it is worthless without the app's client secret or PKCE proof, and it expires within minutes.</p>
+<h3>Why an authorization code? Why not send the tokens directly?</h3>
+<p>Because the redirect back to your app travels <strong>through the browser</strong>, where it is easy to see and steal, while the code-for-tokens swap travels <strong>directly between your app and Cognito</strong>, where nobody else can see it. The code is a harmless claim ticket; the tokens are the valuables, so they never ride through the browser.</p>
+<p><strong>Two kinds of channel</strong></p>
+<ul>
+<li>The <strong>front channel</strong> is anything passed through the user's browser: redirects and the addresses they carry. It is the only way to bring the user back to your app, but it is leaky. Addresses end up in browser history, server logs and proxy logs, can be read by browser extensions, and on phones can be grabbed by a malicious app that registers the same callback address.</li>
+<li>The <strong>back channel</strong> is a direct HTTPS request from your app (or its server) to Cognito's <code>/oauth2/token</code> address. Nothing passes through the browser, and the app chose whom it is talking to.</li>
+</ul>
+<p>The authorization code flow puts only the code on the front channel and the tokens on the back channel.</p>
+<p><strong>Why that split matters</strong></p>
+<ol>
+<li><strong>A stolen code is useless on its own.</strong> To swap it, the thief would also need the client secret or the PKCE code verifier, which never appeared in the browser. A stolen <em>token</em> would work immediately.</li>
+<li><strong>The code is short-lived and single-use.</strong> It expires within minutes and Cognito accepts it only once, so even a leaked code has a tiny window.</li>
+<li><strong>The app proves who it is at the swap.</strong> The redirect cannot prove which app receives it, but the token request can, with the client secret or PKCE. Tokens are only ever handed to the genuine app.</li>
+<li><strong>Refresh tokens become possible.</strong> Long-lived refresh tokens are too dangerous to put in a browser address, so a token-in-the-redirect design gives none, and users must log in again every hour. The back channel can safely deliver one.</li>
+<li><strong>The app knows the tokens are genuine and meant for it.</strong> Tokens arrive as the answer to a request the app itself made, so an attacker cannot slip in a stolen token by crafting a fake redirect (a <em>token injection</em> attack).</li>
+</ol>
+<p><strong>The old way: the implicit flow</strong></p>
+<p>OAuth used to offer exactly what you are asking about. In the <strong>implicit flow</strong> (<code>response_type=token</code>), the tokens came back in the redirect itself, after a <code>#</code> in the address. It was designed in the days before browsers could make cross-site requests, when single-page apps had no other option.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Implicit flow (tokens in the redirect)</th>
+<th>Authorization code flow (+ PKCE)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What travels through the browser</td>
+<td>The tokens themselves</td>
+<td>Only a short-lived, single-use code</td>
+</tr>
+<tr>
+<td>If the redirect is intercepted</td>
+<td>The attacker can use the tokens right away</td>
+<td>The attacker cannot swap the code without the secret or verifier</td>
+</tr>
+<tr>
+<td>Proves which app receives the tokens</td>
+<td>No</td>
+<td>Yes, with the client secret or PKCE</td>
+</tr>
+<tr>
+<td>Refresh token</td>
+<td>Not issued</td>
+<td>Issued</td>
+</tr>
+<tr>
+<td>Exposure in history, logs, extensions</td>
+<td>High</td>
+<td>Only the harmless code</td>
+</tr>
+<tr>
+<td>Status today</td>
+<td>Discouraged by current OAuth security guidance and dropped from OAuth 2.1</td>
+<td>The recommended flow for every kind of app</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cognito still lets an app client enable the implicit grant for older apps. Leave it switched off, and use the authorization code flow with PKCE instead.</p>
+<p><strong>An analogy</strong></p>
+<p>A courier with a valuable parcel doesn't leave it on your doorstep, where anyone walking by could take it. They leave a <strong>collection slip</strong> (the code) in your letterbox. You then go to the depot counter (the back channel) and show the slip <strong>and your ID</strong> (the client secret or PKCE verifier) to collect the parcel (the tokens). Someone who steals the slip from your letterbox still can't collect your parcel.</p>
 <p>Two safety features:</p>
 <ul>
 <li><strong>Exact registration.</strong> Cognito only sends users back to callback URLs you registered on the app client. This stops an attacker tricking Cognito into delivering codes to their own website.</li>
