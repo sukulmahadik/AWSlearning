@@ -111,7 +111,7 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
     <div class="eyebrow">AWS identity · a beginner's guide</div>
     <h1>Cognito, Explained</h1>
     <p class="dek">User Pools, Identity Pools, client IDs, PKCE, tokens and access control, written for someone meeting these ideas for the first time.</p>
-    <div class="byline">Sukul Mahadik · October 11, 2026 · about 57 minutes</div>
+    <div class="byline">Sukul Mahadik · October 11, 2026 · about 62 minutes</div>
     <div>
       <div class="jwt" aria-label="A Cognito access token, split into header, payload and signature"><span class="h">eyJraWQiOiJ1czEiLCJhbGciOiJSUzI1NiJ9</span><span class="dot">.</span><span class="p">eyJzdWIiOiJhMWIyYzNkNC0xMTExIiwiY29nbml0bzpncm91cHMiOlsiYW5hbHlzdCJdLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9yZGVycy1hcGkvcmVhZCJ9</span><span class="dot">.</span><span class="s">Kx9fQ2Lr7Vb0aM3pXn5hWzE4tY1uOcGd8sJ6eRkPq0A</span></div>
       <div class="jwt-key"><span class="h"><b>Header</b> how it was signed</span><span class="p"><b>Payload</b> claims about the user</span><span class="s"><b>Signature</b> Cognito's tamper-proof seal</span></div>
@@ -1104,6 +1104,123 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
 </table></div>
 <p><strong>Why testing needs a callback server</strong></p>
 <p>A Jupyter notebook or a Python script has no website, so when the browser is sent back after login, there is nowhere for it to go. Starting a tiny server on <code>localhost</code> gives the browser somewhere to land, and lets the script catch the code. Familiar tools do the same: <code>gcloud auth login</code> and <code>gh auth login</code> briefly start a local server for exactly this reason. It is the recommended pattern for desktop and command-line apps.</p>
+<h3>What a callback server actually does: its methods</h3>
+<p>A callback server is small. For an ordinary Cognito login it answers <strong>one main route</strong>, <code>GET /callback</code>, plus an optional health check; everything else is helper code around it. Agent platforms add one more route of their own.</p>
+<p><strong>The routes it answers</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Route</th>
+<th>HTTP method</th>
+<th>Called by</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/callback</code></td>
+<td>GET</td>
+<td>The user's browser, redirected by Cognito after login</td>
+<td>Reads <code>code</code> and <code>state</code> (or <code>error</code>), checks <code>state</code>, swaps the code for tokens, shows a "you can close this tab" page</td>
+</tr>
+<tr>
+<td><code>/ping</code> or <code>/health</code> (optional)</td>
+<td>GET</td>
+<td>Your own script or a load balancer</td>
+<td>Confirms the server is running before the login starts</td>
+</tr>
+<tr>
+<td>Agent callback, e.g. <code>/oauth2/callback?session_id=...</code> (agent platforms only)</td>
+<td>GET</td>
+<td>The browser, redirected by AgentCore Identity after the user approves an outside service</td>
+<td>Checks the logged-in user, then calls <code>CompleteResourceTokenAuth</code> (see below)</td>
+</tr>
+</tbody>
+</table></div>
+<p>The main route is a <strong>GET</strong> because the browser arrives by following a redirect, and redirects are always followed with GET; the code travels in the address's query string. Some identity providers can post the result to the callback instead (<code>response_mode=form_post</code>, a <strong>POST</strong>), but Cognito's standard flow uses GET.</p>
+<p><strong>What happens inside the <code>/callback</code> handler, step by step</strong></p>
+<ol>
+<li><strong>Read the query string.</strong> On success it holds <code>code</code> and <code>state</code>. If the user cancelled or something failed, it holds <code>error</code> (for example <code>access_denied</code>) and <code>error_description</code> instead; show that to the user and stop.</li>
+<li><strong>Check <code>state</code>.</strong> It must equal the random value the app created just before sending the user to log in. A mismatch means the response may be forged, so reject it.</li>
+<li><strong>Swap the code for tokens.</strong> Send a <strong>POST</strong> to Cognito's token address, <code>https://&lt;your-domain&gt;.auth.&lt;region&gt;.amazoncognito.com/oauth2/token</code>, with a form body containing <code>grant_type=authorization_code</code>, the <code>code</code>, the same <code>redirect_uri</code> used at the start (it must match exactly), the <code>client_id</code>, and either the PKCE <code>code_verifier</code> or the client secret (sent in an <code>Authorization: Basic</code> header).</li>
+<li><strong>Receive the tokens.</strong> Cognito replies with JSON containing <code>id_token</code>, <code>access_token</code>, <code>refresh_token</code>, <code>expires_in</code> and <code>token_type</code>.</li>
+<li><strong>Check the ID token</strong> before trusting it: signature, issuer, audience (your client ID) and expiry.</li>
+<li><strong>Hand the tokens over.</strong> In testing, pass them to the waiting script in memory. In production, store them on the server and give the browser a session cookie.</li>
+<li><strong>Answer the browser.</strong> In testing, a plain "Login complete, you can close this tab" page. In production, a redirect to the app's home page.</li>
+<li><strong>Shut down</strong> (testing only). The temporary server stops once it has the tokens, or after a timeout such as two minutes.</li>
+</ol>
+<p><strong>Helper functions around it</strong></p>
+<ul>
+<li><strong>Start the login</strong>: pick a port, create <code>state</code> and the PKCE verifier and challenge, build the <code>/oauth2/authorize</code> address, and open the browser.</li>
+<li><strong>Wait</strong>: block until the callback has delivered tokens or an error, with a timeout.</li>
+<li><strong>Refresh</strong> (production): later, POST to <code>/oauth2/token</code> with <code>grant_type=refresh_token</code> to get new tokens without a new login.</li>
+</ul>
+<p><strong>A minimal local callback server in Python</strong> (standard library only)</p>
+<pre><code class="language-python">import base64, hashlib, http.server, json, secrets, threading, urllib.parse, urllib.request, webbrowser
+
+DOMAIN = &quot;https://my-app.auth.us-east-1.amazoncognito.com&quot;
+CLIENT_ID = &quot;4abcexampleclientid&quot;
+REDIRECT_URI = &quot;http://localhost:8080/callback&quot;   # registered on the app client
+
+state = secrets.token_urlsafe(16)                   # CSRF protection
+verifier = secrets.token_urlsafe(64)                # PKCE secret, never leaves this script
+challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b&quot;=&quot;).decode()
+result, done = {}, threading.Event()
+
+class CallbackHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):                               # the browser returns here with GET
+        url = urllib.parse.urlparse(self.path)
+        if url.path == &quot;/ping&quot;:                     # optional health check
+            return self.reply(200, &quot;ok&quot;)
+        if url.path != &quot;/callback&quot;:
+            return self.reply(404, &quot;Not found&quot;)
+        q = urllib.parse.parse_qs(url.query)
+        if &quot;error&quot; in q:                            # user cancelled or login failed
+            result[&quot;error&quot;] = q[&quot;error&quot;][0]
+        elif q.get(&quot;state&quot;, [&quot;&quot;])[0] != state:      # forged or stale response
+            result[&quot;error&quot;] = &quot;state mismatch&quot;
+        else:
+            result[&quot;tokens&quot;] = exchange_code(q[&quot;code&quot;][0])
+        self.reply(200, &quot;Login complete. You can close this tab.&quot;)
+        done.set()
+
+    def reply(self, status, text):
+        self.send_response(status)
+        self.send_header(&quot;Content-Type&quot;, &quot;text/plain; charset=utf-8&quot;)
+        self.end_headers()
+        self.wfile.write(text.encode())
+
+def exchange_code(code):                            # POST the code to Cognito's token address
+    body = urllib.parse.urlencode({
+        &quot;grant_type&quot;: &quot;authorization_code&quot;, &quot;code&quot;: code,
+        &quot;redirect_uri&quot;: REDIRECT_URI, &quot;client_id&quot;: CLIENT_ID,
+        &quot;code_verifier&quot;: verifier,                  # PKCE proof instead of a client secret
+    }).encode()
+    req = urllib.request.Request(f&quot;{DOMAIN}/oauth2/token&quot;, data=body,
+                                 headers={&quot;Content-Type&quot;: &quot;application/x-www-form-urlencoded&quot;})
+    with urllib.request.urlopen(req) as resp:
+        return json.load(resp)                      # id_token, access_token, refresh_token
+
+server = http.server.HTTPServer((&quot;localhost&quot;, 8080), CallbackHandler)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+webbrowser.open(f&quot;{DOMAIN}/oauth2/authorize?&quot; + urllib.parse.urlencode({
+    &quot;response_type&quot;: &quot;code&quot;, &quot;client_id&quot;: CLIENT_ID, &quot;redirect_uri&quot;: REDIRECT_URI,
+    &quot;scope&quot;: &quot;openid email&quot;, &quot;state&quot;: state,
+    &quot;code_challenge&quot;: challenge, &quot;code_challenge_method&quot;: &quot;S256&quot;}))
+done.wait(timeout=120)                              # wait up to two minutes
+server.shutdown()
+print(result.get(&quot;error&quot;) or f&quot;Got tokens: {list(result['tokens'])}&quot;)
+</code></pre>
+<p>This sketch skips step 5 (checking the ID token) to stay short; use the checks from "Checking tokens in your API" before trusting the tokens.</p>
+<p><strong>The extra route in agent platforms (AgentCore Identity)</strong></p>
+<p>When an agent needs a user's approval for an outside service, AgentCore Identity sends the browser to <strong>your</strong> registered return address with a <code>session_id</code> in the query string (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/oauth2-authorization-url-session-binding.html" target="_blank" rel="noopener">AWS docs</a>). That handler:</p>
+<ol>
+<li>Reads <code>session_id</code>; if it is missing, answers with an error (AWS's sample returns HTTP 400).</li>
+<li>Finds out who is logged into <strong>your</strong> app in this browser, from your own session cookie.</li>
+<li>If that is the same user the agent was working for, calls <code>CompleteResourceTokenAuth</code> with the session (<code>sessionUri</code>) and the user (<code>userIdentifier</code>, either the user's original login token or their user ID).</li>
+<li>If the users differ, does nothing (and may log it), so a leaked approval link cannot attach a stranger's account.</li>
+</ol>
+<p>The agent then asks AgentCore for the token again and receives it. Each approval link is valid for 10 minutes, and the return address must be registered as an allowed return URL on the agent's workload identity. For local testing, the AgentCore developer tooling can host this endpoint for you.</p>
 <p><strong>In AI agent platforms (for example AgentCore Identity)</strong></p>
 <p>When an agent needs access to a service such as Google Drive on a user's behalf, the user must approve it in their browser. The provider sends the browser to the agent platform's own callback, which stores the resulting token. The platform then sends the browser on to <em>your</em> app's callback, so your app can confirm that the person who approved is the same user the agent is working for. That check stops a leaked approval link from attaching a stranger's account. Locally this is the localhost server; in production, a route on your app.</p>
 <p><strong>When no callback is needed</strong></p>
