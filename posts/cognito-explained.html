@@ -111,7 +111,7 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
     <div class="eyebrow">AWS identity · a beginner's guide</div>
     <h1>Cognito, Explained</h1>
     <p class="dek">User Pools, Identity Pools, client IDs, PKCE, tokens and access control, written for someone meeting these ideas for the first time.</p>
-    <div class="byline">Sukul Mahadik · October 11, 2026 · about 70 minutes</div>
+    <div class="byline">Sukul Mahadik · October 11, 2026 · about 72 minutes</div>
     <div>
       <div class="jwt" aria-label="A Cognito access token, split into header, payload and signature"><span class="h">eyJraWQiOiJ1czEiLCJhbGciOiJSUzI1NiJ9</span><span class="dot">.</span><span class="p">eyJzdWIiOiJhMWIyYzNkNC0xMTExIiwiY29nbml0bzpncm91cHMiOlsiYW5hbHlzdCJdLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6Im9yZGVycy1hcGkvcmVhZCJ9</span><span class="dot">.</span><span class="s">Kx9fQ2Lr7Vb0aM3pXn5hWzE4tY1uOcGd8sJ6eRkPq0A</span></div>
       <div class="jwt-key"><span class="h"><b>Header</b> how it was signed</span><span class="p"><b>Payload</b> claims about the user</span><span class="s"><b>Signature</b> Cognito's tamper-proof seal</span></div>
@@ -656,6 +656,51 @@ footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(
 </tr>
 </tbody>
 </table></div>
+<p><strong>Examples of public clients that need PKCE</strong></p>
+<p>A public client is any app whose code runs on a device you don't control. Anything inside it can be read by someone who digs into it, so it cannot keep a client secret and relies on PKCE instead.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Kind of app</th>
+<th>Familiar examples</th>
+<th>Why it can't keep a secret</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile apps (iOS, Android)</td>
+<td>A banking, food-delivery or fitness app with "Sign in with Google" or its own login</td>
+<td>Anyone can download and unpack the app. On phones, another app can also register the same callback address (such as <code>myapp://callback</code>) and catch the code, which PKCE makes useless</td>
+</tr>
+<tr>
+<td>Single-page web apps</td>
+<td>A React, Angular or Vue dashboard served as static files, for example from S3 and CloudFront, with no server of its own</td>
+<td>All its JavaScript is downloaded to the browser and readable in developer tools</td>
+</tr>
+<tr>
+<td>Desktop apps</td>
+<td>Electron apps (like Slack or VS Code), or a native Windows or Mac app such as a database client, that sign you in through the browser</td>
+<td>The installed program can be inspected on the user's machine</td>
+</tr>
+<tr>
+<td>Command-line tools and scripts</td>
+<td><code>gcloud auth login</code>, <code>gh auth login</code>, <code>az login</code>, <code>aws sso login</code>; a Python script or Jupyter notebook signing a user in through Cognito</td>
+<td>They run on the user's computer and catch the code on a localhost callback server</td>
+</tr>
+<tr>
+<td>Other installed software</td>
+<td>Smart TV and streaming apps, browser extensions, IoT companion apps</td>
+<td>Anything a user installs or downloads can be taken apart</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Not public clients (a secret works):</strong></p>
+<ul>
+<li>A traditional web app with its own server (Django, Spring, Express, Rails); the secret stays on the server.</li>
+<li>A backend-for-frontend server that holds tokens on behalf of a single-page app.</li>
+<li>Machine-to-machine services and scheduled jobs using client credentials. They don't use PKCE at all, because there is no browser and no authorization code.</li>
+</ul>
+<p>For public clients, PKCE is mandatory, because it is the only thing protecting the authorization code. For confidential clients it is still recommended as an extra layer.</p>
 <p><strong>Putting the three together</strong></p>
 <ul>
 <li><strong>Browser-only website, mobile app, CLI</strong>: client ID + PKCE, <strong>no secret</strong>. Create the app client in Cognito <em>without</em> generating a secret.</li>
