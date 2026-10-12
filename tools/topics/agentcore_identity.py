@@ -117,7 +117,7 @@ CHAPTERS = [
     ("token-vault", 1, "The token vault, credential providers and API keys", "Where credentials live, how they are protected, built-in and custom providers, and API key storage.",
      ["the-token-vault-and-credential-providers", "api-keys"]),
     ("outbound", 1, "Outbound flows and session binding", "Acting for a user (3LO), acting alone (M2M), token exchange, and confirming the right user after consent.",
-     ["outbound-flows-acting-for-a-user-or-acting-alone", "session-binding-and-the-callback-flow"]),
+     ["outbound-flows-acting-for-a-user-or-acting-alone", "predefined-and-custom-credential-providers-who-handles-the-c", "session-binding-and-the-callback-flow"]),
     ("sdk", 2, "Using the AgentCore SDK decorators in your agent code", "@requires_access_token and @requires_api_key: parameters, behaviour and using them as agent tools.",
      ["using-the-agentcore-sdk-decorators-in-your-agent-code"]),
     ("setup", 2, "Setting up providers and gateways", "Registering a credential provider step by step, and inbound and outbound auth on AgentCore Gateway.",

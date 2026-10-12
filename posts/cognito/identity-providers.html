@@ -148,7 +148,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 4 of 13 · about 15 minutes</div>
+    <div class="eyebrow">Chapter 4 of 13 · about 20 minutes</div>
     <h1>Google, Facebook and other identity providers</h1>
     <p class="dek">Federation, trust chains, the two sets of client IDs, and the credentials Google and Facebook give Cognito and AgentCore.</p>
   </header>
@@ -162,7 +162,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
         <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
         <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
         <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
-        <li class="current"><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a><ul><li><a href="#how-a-user-pool-works-with-other-identity-providers">How a User Pool works with other identity providers</a></li><li><a href="#how-identity-providers-trust-each-other">How identity providers trust each other</a></li><li><a href="#the-confusing-part-two-sets-of-client-ids">The confusing part: two sets of client IDs</a></li><li><a href="#two-ways-to-bring-in-google-or-any-idp">Two ways to bring in Google (or any IdP)</a></li><li><a href="#google-facebook-and-other-providers-the-credentials-behind-t">Google, Facebook and other providers: the credentials behind the buttons</a></li></ul></li>
+        <li class="current"><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a><ul><li><a href="#how-a-user-pool-works-with-other-identity-providers">How a User Pool works with other identity providers</a></li><li><a href="#how-identity-providers-trust-each-other">How identity providers trust each other</a></li><li><a href="#the-confusing-part-two-sets-of-client-ids">The confusing part: two sets of client IDs</a></li><li><a href="#two-ways-to-bring-in-google-or-any-idp">Two ways to bring in Google (or any IdP)</a></li><li><a href="#google-facebook-and-other-providers-the-credentials-behind-t">Google, Facebook and other providers: the credentials behind the buttons</a></li><li><a href="#predefined-and-custom-identity-providers-who-handles-the-cal">Predefined and custom identity providers: who handles the callback</a></li></ul></li>
         <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
         <li><a href="identity-pools.html"><span class="num">06</span>Identity Pools and AWS credentials</a></li>
         <li><a href="access-control.html"><span class="num">07</span>How Cognito controls what a signed-in user can access</a></li>
@@ -532,6 +532,114 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </table></div>
 <p>Registrations 2 and 3 can live in the same Google Cloud project, but they are <strong>separate OAuth clients</strong>: different redirect URIs, different scopes and different reasons to show the user a consent screen. Keeping them separate also means a leaked or rotated secret affects only one of them.</p>
 <p><strong>In one sentence:</strong> Google and Facebook give Cognito credentials so it can ask them <em>who the user is</em>, and give AgentCore Identity credentials so it can ask them <em>for access to the user's data</em>; your app holds neither secret.</p>
+
+<h2 id="predefined-and-custom-identity-providers-who-handles-the-cal">Predefined and custom identity providers: who handles the callback</h2>
+<p>Cognito offers two kinds of external identity providers. <strong>Predefined</strong> (social) providers, Google, Facebook, Apple and Login with Amazon, come with all of the provider's addresses and quirks built in; you only supply a client ID and secret. <strong>Custom</strong> providers, any OpenID Connect (OIDC) or SAML 2.0 provider, need you to tell Cognito where the provider lives. In both cases <strong>Cognito, not your app, receives the provider's callback</strong>, swaps the code for the user's identity, and then hands your app its own Cognito code.</p>
+<h3>The two kinds side by side</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Predefined (social)</th>
+<th>Custom OIDC</th>
+<th>Custom SAML 2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Examples</td>
+<td>Google, Facebook, Apple, Login with Amazon</td>
+<td>Okta, Auth0, Salesforce, Entra ID (OIDC mode), Keycloak</td>
+<td>Entra ID, ADFS, Okta, Ping (SAML mode)</td>
+</tr>
+<tr>
+<td>What you enter in Cognito</td>
+<td>Client ID (App ID / Services ID), client secret (or Apple's key), scopes</td>
+<td>Client ID, client secret, scopes, <strong>issuer URL</strong> or the endpoints by hand, attribute request method</td>
+<td>The provider's <strong>metadata</strong> file or URL</td>
+</tr>
+<tr>
+<td>Where the provider's addresses come from</td>
+<td>Built into Cognito</td>
+<td>Read from the issuer's <code>/.well-known/openid-configuration</code>, or typed in manually</td>
+<td>Read from the SAML metadata</td>
+</tr>
+<tr>
+<td>How Cognito learns who the user is</td>
+<td>Provider-specific: Google's ID token, Facebook's Graph API, Apple's ID token</td>
+<td>The ID token, plus the provider's <code>userInfo</code> endpoint</td>
+<td>The signed SAML assertion</td>
+</tr>
+<tr>
+<td>Address you register at the provider</td>
+<td><code>https://&lt;domain&gt;/oauth2/idpresponse</code></td>
+<td><code>https://&lt;domain&gt;/oauth2/idpresponse</code></td>
+<td>ACS URL <code>https://&lt;domain&gt;/saml2/idpresponse</code>, entity ID <code>urn:amazon:cognito:sp:&lt;user-pool-id&gt;</code></td>
+</tr>
+<tr>
+<td>Who handles the callback</td>
+<td>Cognito</td>
+<td>Cognito</td>
+<td>Cognito</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>&lt;domain&gt;</code> is the User Pool's domain, such as <code>my-app.auth.us-east-1.amazoncognito.com</code>, or your own custom domain.</p>
+<h3>What "predefined" actually gives you</h3>
+<p>When you pick Google from the list, Cognito already knows:</p>
+<ul>
+<li><strong>Google's addresses:</strong> its authorization page, token endpoint and signing keys.</li>
+<li><strong>How to read Google's answer:</strong> Google returns an ID token; Facebook, which is plain OAuth rather than OIDC, has no ID token, so Cognito calls Facebook's Graph API with the access token instead; Apple signs its client secret with a private key rather than using a fixed one.</li>
+<li><strong>Which attributes exist:</strong> the attribute-mapping screen lists the provider's own field names, such as Google's <code>email</code>, <code>name</code> and <code>picture</code>.</li>
+</ul>
+<p>That is why setting up Google needs only three values from you: the client ID, the client secret and the scopes.</p>
+<h3>Setting up a custom OIDC provider</h3>
+<ol>
+<li><strong>Register an app at the provider</strong> (for example, Okta) with redirect URI <code>https://&lt;domain&gt;/oauth2/idpresponse</code>. Copy its client ID and client secret.</li>
+<li><strong>In the User Pool, add an OpenID Connect provider</strong> and give it a name, the client ID, the secret and the authorized scopes (<code>openid</code> is required, for example <code>openid email profile</code>).</li>
+<li><strong>Choose how Cognito finds the endpoints:</strong>
+   - <strong>Auto fill through issuer URL:</strong> enter the issuer, such as <code>https://example.okta.com</code>. Cognito reads <code>/.well-known/openid-configuration</code> from it and fills in the authorization, token, <code>userInfo</code> and signing-key (<code>jwks_uri</code>) addresses. The URL must use HTTPS and must not end with <code>/</code>.
+   - <strong>Manual input:</strong> type the four addresses yourself, for providers with non-standard paths or behind a proxy.</li>
+<li><strong>Pick the attribute request method,</strong> <code>GET</code> or <code>POST</code>, the way Cognito calls the provider's <code>userInfo</code> endpoint.</li>
+<li><strong>Map attributes</strong> from the provider's claims to User Pool attributes. The provider's <code>sub</code> maps to the federated username automatically.</li>
+<li><strong>Enable the provider on the app clients</strong> that should offer it.</li>
+</ol>
+<p><strong>A custom SAML provider</strong> is set up by exchanging metadata instead: you give the provider Cognito's ACS URL and entity ID, and give Cognito the provider's metadata file or URL (<a href="https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-saml-idp-things-to-know.html" target="_blank" rel="noopener">AWS docs</a>). Cognito supports both sign-ins that start at your app (SP-initiated) and sign-ins that start at the provider's portal (IdP-initiated).</p>
+<h3>How Cognito handles the callback, step by step</h3>
+<p>The callback work is the same for predefined and custom OIDC providers; only where the addresses come from differs (<a href="https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-oidc-idp.html" target="_blank" rel="noopener">AWS docs</a>).</p>
+<ol>
+<li><strong>Your app sends the user to Cognito</strong> (<code>/oauth2/authorize</code>) with your app's client ID, your callback URL and your own <code>state</code>. Cognito remembers this pending login.</li>
+<li><strong>Cognito sends the user to the provider</strong> with <strong>Cognito's</strong> client ID at that provider, its own <code>state</code>, and <code>redirect_uri=https://&lt;domain&gt;/oauth2/idpresponse</code>.</li>
+<li><strong>The user signs in at the provider</strong>, which redirects the browser to Cognito's <code>/oauth2/idpresponse</code> with a code.</li>
+<li><strong>Cognito matches the response</strong> to the pending login using its <code>state</code>, and rejects anything it didn't start.</li>
+<li><strong>Cognito swaps the code</strong> at the provider's token endpoint, using the client secret it stores for that provider. For OIDC it checks the ID token's signature against the provider's keys, and may call <code>userInfo</code> for more attributes.</li>
+<li><strong>Cognito maps the attributes,</strong> creates or updates the federated user, and runs any Lambda triggers.</li>
+<li><strong>Cognito redirects to your app's callback URL</strong> with <strong>its own</strong> authorization code and your original <code>state</code>. Your app swaps that code with Cognito, never with the provider.</li>
+</ol>
+<p>For SAML, step 3 is a browser <strong>POST</strong> of a signed assertion to <code>/saml2/idpresponse</code>, and step 5 is checking that assertion's signature with the certificate from the metadata. There is no code to swap.</p>
+<h3>What you build, and what you don't</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Callback</th>
+<th>Who registers it</th>
+<th>Who implements it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider → Cognito (<code>/oauth2/idpresponse</code> or <code>/saml2/idpresponse</code>)</td>
+<td>You register it at Google, Facebook, Okta or the SAML provider</td>
+<td><strong>Cognito</strong>, for predefined and custom providers alike</td>
+</tr>
+<tr>
+<td>Cognito → your app (<code>https://app.example.com/callback</code>)</td>
+<td>You register it on the app client</td>
+<td><strong>Your app</strong>: receive Cognito's code and swap it for Cognito tokens</td>
+</tr>
+</tbody>
+</table></div>
+<p>So choosing a predefined or a custom provider changes how much <strong>configuration</strong> you do in Cognito, but never adds callback <strong>code</strong> to your app: your app only ever handles Cognito's callback.</p>
 
     <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="clients-and-pkce.html"><span class="dir">&larr; Previous</span><span class="t">Clients, secrets and PKCE</span></a><a class="next" href="tokens-and-scopes.html"><span class="dir">Next &rarr;</span><span class="t">Tokens, scopes and resource servers</span></a></nav>
 

@@ -205,7 +205,7 @@ nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ff
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 6 of 10 · about 6 minutes</div>
+    <div class="eyebrow">Chapter 6 of 10 · about 10 minutes</div>
     <h1>Outbound flows and session binding</h1>
     <p class="dek">Acting for a user (3LO), acting alone (M2M), token exchange, and confirming the right user after consent.</p>
   </header>
@@ -221,7 +221,7 @@ nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ff
         <li style="--ch:#0b7a6e"><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
         <li style="--ch:#c2410c"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a></li>
         <li style="--ch:#be185d"><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
-        <li class="current" style="--ch:#2f7d32"><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a><ul><li><a href="#outbound-flows-acting-for-a-user-or-acting-alone">Outbound flows: acting for a user, or acting alone</a></li><li><a href="#session-binding-and-the-callback-flow">Session binding and the callback flow</a></li></ul></li>
+        <li class="current" style="--ch:#2f7d32"><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a><ul><li><a href="#outbound-flows-acting-for-a-user-or-acting-alone">Outbound flows: acting for a user, or acting alone</a></li><li><a href="#predefined-and-custom-credential-providers-who-handles-the-c">Predefined and custom credential providers: who handles the callback</a></li><li><a href="#session-binding-and-the-callback-flow">Session binding and the callback flow</a></li></ul></li>
         <li class="part">Part 2 · When you build</li>
         <li style="--ch:#4338ca"><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
         <li style="--ch:#b42318"><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
@@ -303,6 +303,121 @@ nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ff
 <li><strong>Ask for the narrowest scopes</strong> that do the job, such as <code>drive.metadata.readonly</code> rather than full Drive access. Users see the scopes on the consent screen.</li>
 <li><strong>Calls to AWS services don't use the vault.</strong> If the agent reads S3 or DynamoDB, that goes through its IAM execution role.</li>
 </ul>
+
+<h2 id="predefined-and-custom-credential-providers-who-handles-the-c">Predefined and custom credential providers: who handles the callback</h2>
+<p class="summary">AgentCore Identity offers two kinds of OAuth credential providers. <strong>Predefined</strong> (built-in) providers, such as <code>GoogleOauth2</code>, <code>GithubOauth2</code> or <code>SlackOauth2</code>, come with the provider's addresses and provider-specific settings already filled in; you supply only a client ID and secret. A <strong>custom</strong> provider, <code>CustomOauth2</code>, works with any OAuth 2.0 server, but you must tell AgentCore where that server lives. Either way, <strong>AgentCore hosts the OAuth callback</strong>: it receives the provider's code, swaps it for tokens and stores them in the vault. Your app's only job is the final session-binding step.</p>
+<h3>The two kinds side by side</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Predefined provider</th>
+<th>Custom provider (<code>CustomOauth2</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Examples</td>
+<td><code>GoogleOauth2</code>, <code>GithubOauth2</code>, <code>SlackOauth2</code>, <code>SalesforceOauth2</code>, <code>MicrosoftOauth2</code>, <code>AtlassianOauth2</code>, <code>FacebookOauth2</code>, <code>CognitoOauth2</code> and more</td>
+<td>Your company's OAuth server, Keycloak, a partner API, any provider without a built-in vendor</td>
+</tr>
+<tr>
+<td>What you enter</td>
+<td>Client ID and client secret</td>
+<td>Client ID, client secret (or another client authentication method), and <strong>where the server lives</strong></td>
+</tr>
+<tr>
+<td>Where the provider's addresses come from</td>
+<td>Built into AgentCore</td>
+<td>A <strong>discovery URL</strong> ending in <code>/.well-known/openid-configuration</code> or <code>/.well-known/oauth-authorization-server</code>, or the <strong>authorization server metadata</strong> (issuer, authorization and token endpoints) entered directly</td>
+</tr>
+<tr>
+<td>Provider-specific settings</td>
+<td>Preconfigured by AWS</td>
+<td>You set what the server needs, for example how the client authenticates at the token endpoint</td>
+</tr>
+<tr>
+<td>Callback URL</td>
+<td>AgentCore's <code>callbackUrl</code>, unique to the provider</td>
+<td>The same: AgentCore's <code>callbackUrl</code>, unique to the provider</td>
+</tr>
+<tr>
+<td>Who handles the callback</td>
+<td>AgentCore</td>
+<td>AgentCore</td>
+</tr>
+<tr>
+<td>User flow (3LO) and M2M (2LO)</td>
+<td>Supported where the provider supports them</td>
+<td>Supported</td>
+</tr>
+</tbody>
+</table></div>
+<h3>What "predefined" actually gives you</h3>
+<p>AWS describes built-in providers as having the authorization server endpoints and provider-specific parameters preconfigured (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html" rel="noopener" target="_blank">AWS docs</a>). In practice that means:</p>
+<ul>
+<li><strong>You don't look up addresses.</strong> AgentCore already knows Google's authorization page and token endpoint, GitHub's, Slack's and so on.</li>
+<li><strong>Provider quirks are handled.</strong> Providers differ in small ways, such as how scopes are written, which extra parameters they expect, and how they return tokens. The built-in vendor takes care of these for that provider.</li>
+<li><strong>Setup is three values:</strong> a name for the provider, the client ID and the client secret.</li>
+</ul>
+<h3>Setting up a custom provider</h3>
+<p>First register an OAuth client at your provider, then create the AgentCore provider pointing at it. With a discovery URL:</p>
+<pre><code class="language-bash">aws bedrock-agentcore-control create-oauth2-credential-provider \
+  --name "inventory-api" \
+  --credential-provider-vendor "CustomOauth2" \
+  --oauth2-provider-config-input '{
+      "customOauth2ProviderConfig": {
+        "oauthDiscovery": {"discoveryUrl": "https://auth.example.com/.well-known/openid-configuration"},
+        "clientId": "&lt;client-id&gt;",
+        "clientSecret": "&lt;client-secret&gt;"
+      }
+    }'
+</code></pre>
+<p>The custom configuration also lets you choose (<a href="https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CustomOauth2ProviderConfigInput.html" rel="noopener" target="_blank">API reference</a>):</p>
+<ul>
+<li><strong><code>oauthDiscovery</code></strong> (required): either <code>discoveryUrl</code>, or <code>authorizationServerMetadata</code> with the server's addresses entered directly, for servers that don't publish a discovery document.</li>
+<li><strong><code>clientAuthenticationMethod</code></strong>: how AgentCore proves itself at the token endpoint, such as <code>CLIENT_SECRET_BASIC</code>, <code>CLIENT_SECRET_POST</code> or <code>PRIVATE_KEY_JWT</code>.</li>
+<li><strong><code>clientSecretSource</code></strong>: <code>MANAGED</code> (AgentCore stores the secret) or <code>EXTERNAL</code> (a Secrets Manager secret you manage).</li>
+<li><strong><code>onBehalfOfTokenExchangeConfig</code></strong>: settings for exchanging a user's token for one the API accepts.</li>
+<li><strong>Private endpoints</strong>: for OAuth servers reachable only inside your network.</li>
+</ul>
+<p>Then, exactly as for a predefined provider, copy the returned <code>callbackUrl</code> into your OAuth client's allowed redirect URIs at the provider.</p>
+<h3>How AgentCore handles the callback, step by step</h3>
+<p>The callback work is the same for predefined and custom providers; only where the addresses come from differs.</p>
+<ol class="steps">
+<li><strong>The agent asks for a token</strong> (<code>GetResourceOauth2Token</code>) with flow <code>USER_FEDERATION</code>. AgentCore records a pending request for this agent and user, and returns an authorization URL and a session URI.</li>
+<li><strong>The authorization URL</strong> points at the provider, with AgentCore's client ID there, the requested scopes, a <code>state</code> value and <code>redirect_uri</code> set to the provider's <strong><code>callbackUrl</code></strong>: <code>https://bedrock-agentcore.&lt;region&gt;.amazonaws.com/identities/oauth2/callback/&lt;id&gt;</code>.</li>
+<li><strong>The user approves at the provider</strong>, which redirects the browser to that <code>callbackUrl</code> with a code.</li>
+<li><strong>AgentCore identifies the provider from the callback address.</strong> The <code>&lt;id&gt;</code> at the end is unique to one credential provider, so AgentCore knows which configuration and which stored client secret to use.</li>
+<li><strong>AgentCore matches the response to the pending request</strong> using <code>state</code>, and swaps the code at the provider's token endpoint using the client secret from Secrets Manager (or the configured client authentication method).</li>
+<li><strong>AgentCore keeps the tokens for this agent and user,</strong> but releases them only after session binding.</li>
+<li><strong>AgentCore redirects the browser to your app's return URL</strong> with a <code>session_id</code>. Your app checks the logged-in user and calls <code>CompleteResourceTokenAuth</code> (next section).</li>
+<li><strong>The agent asks again</strong> and receives the access token. Later calls reuse or silently refresh it.</li>
+</ol>
+<h3>What you build, and what you don't</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Callback</th>
+<th>Who registers it</th>
+<th>Who implements it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider → AgentCore (<code>callbackUrl</code>)</td>
+<td>You register it at Google, GitHub, Slack or your OAuth server</td>
+<td><strong>AgentCore</strong>, for predefined and custom providers alike</td>
+</tr>
+<tr>
+<td>AgentCore → your app (return URL)</td>
+<td>You register it on the agent's workload identity</td>
+<td><strong>Your app</strong>: confirm the user and call <code>CompleteResourceTokenAuth</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>For <strong>machine-to-machine (M2M)</strong> use there is no browser and no callback at all: AgentCore calls the provider's token endpoint directly with the client credentials, for predefined and custom providers alike.</p>
+<p>So choosing a predefined or a custom provider changes how much <strong>configuration</strong> you do, but never adds OAuth callback <strong>code</strong> to your agent or app: AgentCore always receives the provider's callback, and your app only handles session binding.</p>
 
 <h2 id="session-binding-and-the-callback-flow">Session binding and the callback flow</h2>
 <p class="summary"><strong>Session binding</strong> is the step where your app confirms that the person who just approved access at Google is the same person the agent is working for. Without it, a leaked authorization link could let a stranger attach <em>their</em> account to someone else's session, or trick a user into attaching theirs to an attacker's.</p>

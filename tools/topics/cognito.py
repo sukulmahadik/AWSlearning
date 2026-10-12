@@ -38,7 +38,7 @@ CHAPTERS = [
     ("identity-providers", 1, "Google, Facebook and other identity providers", "Federation, trust chains, the two sets of client IDs, and the credentials Google and Facebook give Cognito and AgentCore.",
      ["how-a-user-pool-works-with-other-identity-providers", "how-identity-providers-trust-each-other",
       "the-confusing-part-two-sets-of-client-ids", "two-ways-to-bring-in-google-or-any-idp",
-      "google-facebook-and-other-providers-the-credentials-behind-t"]),
+      "google-facebook-and-other-providers-the-credentials-behind-t", "predefined-and-custom-identity-providers-who-handles-the-cal"]),
     ("tokens-and-scopes", 1, "Tokens, scopes and resource servers", "What is inside ID, access and refresh tokens, how resource servers and custom scopes work, and where every claim comes from.",
      ["what-is-inside-a-token-claims-and-scopes", "resource-servers-and-custom-scopes-how-they-work", "defining-claims-and-scopes-in-depth"]),
     ("identity-pools", 1, "Identity Pools and AWS credentials", "How an Identity Pool turns a login into temporary AWS credentials, its providers, flows and guest access, and how it picks IAM roles.",
