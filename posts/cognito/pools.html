@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="What each pool does, how they chain together, and how one User Pool serves both people and apps.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>User Pools and Identity Pools · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 2 of 12 · about 6 minutes</div>
+    <h1>User Pools and Identity Pools</h1>
+    <p class="dek">What each pool does, how they chain together, and how one User Pool serves both people and apps.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li class="current"><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a><ul><li><a href="#user-pools-and-identity-pools">User Pools and Identity Pools</a></li><li><a href="#one-user-pool-two-kinds-of-callers-people-and-apps">One User Pool, two kinds of callers: people and apps</a></li></ul></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="user-pools-and-identity-pools">User Pools and Identity Pools</h2>
+<p>A User Pool answers <strong>"who is this person?"</strong> and an Identity Pool answers <strong>"what may this person do inside AWS?"</strong> They are separate services; you can use either one alone, or chain them together.</p>
+<h3>The User Pool: your app's login system</h3>
+<p>A User Pool is a ready-made user database plus login service, run by AWS. Without it, you would have to build sign-up pages, store passwords safely, send verification emails, and so on.</p>
+<p>What it does for you:</p>
+<ul>
+<li><strong>Stores users</strong>: usernames, emails, phone numbers, and passwords (stored safely as hashes, never in plain text).</li>
+<li><strong>Runs the login</strong>: sign-up, sign-in, "forgot password", email or SMS verification, and multi-factor authentication (MFA, for example a code from an authenticator app).</li>
+<li><strong>Accepts outside logins</strong>: users can "Sign in with Google" or with their company account instead of creating a new password (covered in the next section).</li>
+<li><strong>Groups users</strong>: you can put users into groups such as <code>admin</code> or <code>analyst</code>, and the group names travel inside their tokens.</li>
+<li><strong>Hands out tokens</strong>: after a successful login, the user receives three tokens:<ul>
+<li>an <strong>ID token</strong>: says who the user is (name, email)</li>
+<li>an <strong>access token</strong>: says what the user's app may do with your API</li>
+<li>a <strong>refresh token</strong>: lets the app get fresh ID and access tokens later without asking for the password again</li>
+</ul>
+</li>
+</ul>
+<p>One important limit: these tokens are meant for <strong>your own</strong> application and API. AWS services such as S3 (file storage) or DynamoDB (a database) do not accept them directly.</p>
+<h3>The Identity Pool: a converter from login to AWS access</h3>
+<p>An Identity Pool takes a token that proves who the user is and exchanges it for <strong>temporary AWS credentials</strong>. Those credentials let the user's app call AWS services directly, for example uploading a photo straight to S3 without going through your server.</p>
+<p>What it does, step by step:</p>
+<ol>
+<li>The app hands over a token from a provider the Identity Pool trusts (a User Pool, Google, a company login, and so on).</li>
+<li>The Identity Pool checks the token is genuine.</li>
+<li>It gives the user a permanent <strong>identity ID</strong>, a unique label for that person within the pool.</li>
+<li>It decides which <strong>IAM role</strong> (set of AWS permissions) this user should get.</li>
+<li>It asks AWS STS for temporary credentials for that role, typically valid for one hour, and returns them to the app.</li>
+</ol>
+<p>It can also give limited access to <strong>guests</strong> who have not logged in at all, if you allow it.</p>
+<h3>Side by side</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>User Pool</th>
+<th>Identity Pool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Question it answers</td>
+<td>Who are you?</td>
+<td>What can you do in AWS?</td>
+</tr>
+<tr>
+<td>Keeps a list of users?</td>
+<td>Yes</td>
+<td>No, only maps identities to IDs</td>
+</tr>
+<tr>
+<td>Gives the app</td>
+<td>ID, access and refresh tokens</td>
+<td>Temporary AWS credentials</td>
+</tr>
+<tr>
+<td>Who accepts what it gives</td>
+<td>Your app and your API</td>
+<td>AWS services (S3, DynamoDB, and so on)</td>
+</tr>
+<tr>
+<td>How permissions are expressed</td>
+<td>Groups, scopes, claims in the token</td>
+<td>IAM roles and policies</td>
+</tr>
+<tr>
+<td>Supports guests?</td>
+<td>No</td>
+<td>Yes, optionally</td>
+</tr>
+</tbody>
+</table></div>
+<h3>How they are used together</h3>
+<ol>
+<li><strong>User Pool only (the most common setup).</strong> The user logs in, the app calls <em>your</em> API with the access token, and your server, which has its own AWS permissions, talks to AWS on the user's behalf. Users never hold AWS credentials themselves.</li>
+<li><strong>User Pool, then Identity Pool.</strong> The user logs in, the app trades the ID token at the Identity Pool for AWS credentials, then uploads files or writes data to AWS directly. Common in mobile apps and IoT devices.</li>
+<li><strong>Identity Pool only.</strong> Used for guest access, or when users already log in with Google or a company system and you only need to give them AWS access, without keeping your own user list.</li>
+</ol>
+
+<h2 id="one-user-pool-two-kinds-of-callers-people-and-apps">One User Pool, two kinds of callers: people and apps</h2>
+<p>A single User Pool can serve both <strong>human users</strong> (people who log in with a password or Google) and <strong>apps that act on their own</strong> (background services, scheduled jobs, other APIs). They are stored differently: people are <strong>user records</strong>, while apps are <strong>app clients</strong> with their own client ID and secret.</p>
+<p><strong>Why you would want both in one place</strong></p>
+<p>Imagine an orders API. Customers call it from a website, and a nightly reporting job also calls it to pull totals. Both need tokens your API can check. If both kinds of token come from the same User Pool, your API checks just one issuer, one set of signing keys, and one list of scopes.</p>
+<p><strong>How each kind is represented</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Human user</th>
+<th>App (machine-to-machine)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stored as</td>
+<td>A user record in the pool's user directory</td>
+<td>An app client registration; no user record exists</td>
+</tr>
+<tr>
+<td>Proves itself with</td>
+<td>Password, MFA, or an outside login such as Google</td>
+<td>Its own client ID and client secret</td>
+</tr>
+<tr>
+<td>Login procedure (OAuth flow)</td>
+<td>Authorization code, usually with a browser and a callback URL</td>
+<td>Client credentials: one direct request, no browser, no callback</td>
+</tr>
+<tr>
+<td>Tokens received</td>
+<td>ID token, access token, and refresh token</td>
+<td>Access token only. No ID token (there is no person to describe) and no refresh token (the app simply asks again)</td>
+</tr>
+<tr>
+<td>Who the token says it is</td>
+<td><code>sub</code> = the user's ID, plus <code>username</code> and groups</td>
+<td><code>sub</code> = the app's client ID; no username or groups</td>
+</tr>
+<tr>
+<td>What decides its permissions</td>
+<td>Groups, custom claims, and scopes</td>
+<td>Scopes only</td>
+</tr>
+<tr>
+<td>Example</td>
+<td>Maya logs into the orders website</td>
+<td>The nightly reporting job pulls sales totals</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>How an app logs in, step by step</strong></p>
+<ol>
+<li>You define a <strong>resource server</strong> in the User Pool to represent your API, for example <code>orders-api</code>, and create custom scopes such as <code>orders-api/read</code>.</li>
+<li>You create an app client for the reporting job <strong>with a client secret</strong>, allow only the <strong>client credentials</strong> flow, and allow only the scope <code>orders-api/read</code>.</li>
+<li>When the job runs, it sends one request to the User Pool's <code>/oauth2/token</code> address containing its client ID, its secret, and the scope it wants.</li>
+<li>Cognito checks the secret and returns an <strong>access token</strong> whose <code>scope</code> claim says <code>orders-api/read</code>.</li>
+<li>The job calls the orders API with that token. The API checks the token and the scope, exactly as it would for a person.</li>
+<li>When the token expires (after one hour by default), the job simply requests a new one.</li>
+</ol>
+<p><strong>Keeping the two kinds separate inside one pool</strong></p>
+<ul>
+<li>Give apps and human-facing websites <strong>separate app clients</strong>. A website's app client allows the authorization code flow; a service's app client allows only client credentials. One app client cannot use both.</li>
+<li>Give each service its <strong>own</strong> app client, so you can see which service did what and cancel one service's access by deleting or rotating its secret without affecting the others.</li>
+<li>Grant each app client <strong>only the scopes it needs</strong>. The reporting job gets <code>orders-api/read</code>, never <code>orders-api/write</code>.</li>
+<li>In your API, check <code>token_use</code> and <code>client_id</code>, and remember that an app's token has no groups: rules written as "only admins may delete" will never match an app, which is usually what you want.</li>
+<li>Machine-to-machine use requires the User Pool to have a <strong>domain</strong> set up (the address that serves <code>/oauth2/token</code>), and AWS bills machine-to-machine token requests separately from human sign-ins, so check current Cognito pricing before relying on it heavily.</li>
+</ul>
+<p><strong>In short:</strong> people live in the pool as users and log in through a browser; apps live in the pool as app clients and log in as themselves with a secret. Both receive tokens from the same issuer, so your API treats them the same way, with scopes doing the gatekeeping.</p>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="basics.html"><span class="dir">&larr; Previous</span><span class="t">The basics</span></a><a class="next" href="clients-and-pkce.html"><span class="dir">Next &rarr;</span><span class="t">Clients, secrets and PKCE</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

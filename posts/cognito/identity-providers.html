@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Federation, trust chains, the two sets of client IDs, and the credentials Google and Facebook give Cognito and AgentCore.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Google, Facebook and other identity providers · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 4 of 12 · about 15 minutes</div>
+    <h1>Google, Facebook and other identity providers</h1>
+    <p class="dek">Federation, trust chains, the two sets of client IDs, and the credentials Google and Facebook give Cognito and AgentCore.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li class="current"><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a><ul><li><a href="#how-a-user-pool-works-with-other-identity-providers">How a User Pool works with other identity providers</a></li><li><a href="#how-identity-providers-trust-each-other">How identity providers trust each other</a></li><li><a href="#the-confusing-part-two-sets-of-client-ids">The confusing part: two sets of client IDs</a></li><li><a href="#two-ways-to-bring-in-google-or-any-idp">Two ways to bring in Google (or any IdP)</a></li><li><a href="#google-facebook-and-other-providers-the-credentials-behind-t">Google, Facebook and other providers: the credentials behind the buttons</a></li></ul></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="how-a-user-pool-works-with-other-identity-providers">How a User Pool works with other identity providers</h2>
+<p>A User Pool is an identity provider in its own right, and it can also <strong>pass the job of checking passwords to other providers</strong> such as Google or a company login. Either way, your app receives the same kind of Cognito tokens.</p>
+<p><strong>Why this matters</strong></p>
+<p>Users often prefer "Sign in with Google" over creating yet another password. Companies want employees to use their existing work login. Federation lets the User Pool accept both, while your app only has to understand one kind of token: Cognito's.</p>
+<p><strong>Kinds of providers a User Pool can connect to</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Examples</th>
+<th>In plain terms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The User Pool itself</td>
+<td>Username and password stored in Cognito</td>
+<td>Users create an account directly in your app</td>
+</tr>
+<tr>
+<td>Social providers</td>
+<td>Google, Apple, Facebook, Login with Amazon</td>
+<td>Users sign in with a personal account they already have</td>
+</tr>
+<tr>
+<td>Company providers using SAML</td>
+<td>Microsoft Entra ID, ADFS, Okta, Ping</td>
+<td>Employees sign in with their work account. SAML is an older, XML-based standard common in large companies</td>
+</tr>
+<tr>
+<td>Any OIDC provider</td>
+<td>Auth0, Okta, Salesforce</td>
+<td>Any service that follows the OpenID Connect standard</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>What happens when a user picks "Sign in with Google"</strong></p>
+<ol>
+<li>The User Pool sends the user to Google's login page.</li>
+<li>Google checks the password. Cognito never sees the Google password.</li>
+<li>Google sends the user back to the User Pool with proof of who they are.</li>
+<li>The User Pool copies useful details (email, name) from Google's proof into its own user record. This copying is called <strong>attribute mapping</strong>, and you choose which details to copy.</li>
+<li>The User Pool creates a user record for this person (a <strong>federated user</strong>, with a username like <code>Google_1098...</code>), or links it to an existing account with the same email if you set that up.</li>
+<li>The User Pool issues its <strong>own</strong> tokens to your app. Inside the ID token, a claim called <code>identities</code> records that this user came through Google.</li>
+</ol>
+<p>Each application registered with the User Pool can choose which providers to offer. An internal admin app might allow only the company login, while a customer app offers Google and Apple.</p>
+
+<h2 id="how-identity-providers-trust-each-other">How identity providers trust each other</h2>
+<p>Identity providers can be chained together: one provider accepts another provider's proof, then issues its <strong>own</strong> proof to the next system. Each system only has to trust its immediate neighbour, not everyone in the chain.</p>
+<p><strong>An everyday comparison</strong></p>
+<p>Your employer confirms your identity to a travel agency. The travel agency issues you a ticket. The airline checks only the ticket; it never calls your employer. Each step trusts the one before it and issues something new.</p>
+<p><strong>Key ideas</strong></p>
+<ul>
+<li><strong>Trust goes one way.</strong> When a User Pool trusts Google, it accepts Google's word about users. Google knows nothing about your app and does not trust the User Pool back.</li>
+<li><strong>A broker sits in the middle.</strong> Some services act as go-betweens. Cognito User Pools, Okta, Auth0 and Entra ID can all do this. Toward the provider <em>above</em> them, they behave like an ordinary app asking for a login. Toward the app <em>below</em> them, they behave like an identity provider handing out tokens.</li>
+<li><strong>Chains can have several links.</strong> A realistic example:<ol>
+<li>An employee logs in with their company's Entra ID.</li>
+<li>Entra ID sends proof to the Cognito User Pool.</li>
+<li>The User Pool issues its own token to the app.</li>
+<li>The app hands that token to an Identity Pool.</li>
+<li>The Identity Pool gets AWS credentials from STS. At every hop, the receiver checks the previous proof's signature before issuing its own.</li>
+</ol>
+</li>
+<li><strong>The format can change along the way.</strong> A company provider may speak SAML, while the User Pool hands out JWTs. The broker translates between them.</li>
+<li><strong>The Identity Pool only receives.</strong> It trusts identity providers (including User Pools), but it does not issue identity tokens; it issues AWS credentials.</li>
+<li><strong>One person, several logins.</strong> If the same person sometimes uses Google and sometimes Facebook, both logins can be linked to one user record, so their data stays the same either way.</li>
+</ul>
+<p><strong>Rule of thumb:</strong> let your app trust as few providers as possible, ideally just one broker such as a Cognito User Pool, and let the broker handle every other provider.</p>
+
+<h2 id="the-confusing-part-two-sets-of-client-ids">The confusing part: two sets of client IDs</h2>
+<p>When you add "Sign in with Google" to a User Pool, you end up with <strong>two different client IDs</strong>, because there are two separate relationships: your app is a customer of Cognito, and Cognito is a customer of Google.</p>
+<p><strong>Why two?</strong></p>
+<p>Remember the broker idea from earlier. Cognito sits in the middle:</p>
+<ul>
+<li>Looking <strong>down</strong> toward your app, Cognito is the login provider. Your app must be registered with Cognito, so your app gets a client ID <strong>from Cognito</strong>.</li>
+<li>Looking <strong>up</strong> toward Google, Cognito is just another app asking Google to log someone in. So Cognito must be registered with Google, and gets a client ID <strong>from Google</strong>.</li>
+</ul>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Registration 1</th>
+<th>Registration 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Who is asking for logins (the client)</td>
+<td>Your app</td>
+<td>Cognito</td>
+</tr>
+<tr>
+<td>Who provides the logins (the server)</td>
+<td>Cognito</td>
+<td>Google</td>
+</tr>
+<tr>
+<td>Where you create it</td>
+<td>Cognito console → your User Pool → App clients</td>
+<td>Google Cloud Console → Credentials → OAuth client</td>
+</tr>
+<tr>
+<td>Where the values end up</td>
+<td>In your app's configuration</td>
+<td>Pasted into the User Pool's Google provider settings</td>
+</tr>
+<tr>
+<td>"Send the user back to" URL</td>
+<td>Your app's address, e.g. <code>https://app.example.com/callback</code></td>
+<td>Cognito's address, ending in <code>/oauth2/idpresponse</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Your app never sees Google's client ID or secret, and never talks to Google directly. Adding Apple or a company login later repeats the pattern: one registration at that provider, for Cognito.</p>
+<p><strong>The whole journey, step by step</strong></p>
+<ol>
+<li>The user clicks <strong>Login</strong> in your app. The app sends the browser to Cognito, including <strong>your app's client ID</strong> so Cognito knows which app this is.</li>
+<li>Cognito shows its login page with the buttons allowed for that app. The user clicks <strong>Sign in with Google</strong>.</li>
+<li>Cognito sends the browser to Google, this time including <strong>Cognito's Google client ID</strong>, so Google knows Cognito is asking.</li>
+<li>The user types their Google password <strong>on Google's own page</strong>. Google sends the browser back to Cognito with a one-time code.</li>
+<li>Behind the scenes, Cognito swaps that code with Google for proof of the user's identity, using its Google client secret.</li>
+<li>Cognito creates or finds the user in the User Pool and sends the browser back to <strong>your app</strong> with a new one-time code of its own.</li>
+<li>Your app's server swaps that code with Cognito for tokens, using <strong>your app's</strong> client ID and secret (or PKCE).</li>
+<li>The user is now logged in. If needed, the app can take the ID token to an Identity Pool to get AWS access.</li>
+</ol>
+
+<h2 id="two-ways-to-bring-in-google-or-any-idp">Two ways to bring in Google (or any IdP)</h2>
+<p>Google can be connected to the <strong>User Pool</strong> or directly to the <strong>Identity Pool</strong>. Connecting through the User Pool is the usual choice; connecting directly is simpler but gives you less.</p>
+<p><strong>Option A: Google → User Pool → Identity Pool</strong></p>
+<p>Google is added as a login option on the User Pool, exactly as described in the previous section. The Identity Pool trusts only the User Pool.</p>
+<ul>
+<li>The user can sign in with Google, or with any other option you allow.</li>
+<li>Your app always ends up holding <strong>Cognito tokens</strong>, no matter which button was clicked.</li>
+<li>If the app needs AWS access, it takes the Cognito ID token to the Identity Pool.</li>
+</ul>
+<p><strong>Option B: Google → Identity Pool directly</strong></p>
+<p>There is no User Pool at all. Your app shows Google's own sign-in button, gets a token from Google, and hands that Google token straight to the Identity Pool, which trusts Google directly. In code, the app passes it in a field called <code>Logins</code>, for example <code>{"accounts.google.com": "&lt;google-token&gt;"}</code>.</p>
+<p><strong>Comparing the two</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>A: through the User Pool</th>
+<th>B: directly to the Identity Pool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You keep your own list of users</td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Tokens your own API can check</td>
+<td>Yes, always the same Cognito format</td>
+<td>No, only Google's tokens</td>
+</tr>
+<tr>
+<td>Can use groups to decide permissions</td>
+<td>Yes</td>
+<td>No, only what Google's token contains</td>
+</tr>
+<tr>
+<td>Ready-made login page, MFA, custom steps</td>
+<td>Yes</td>
+<td>No, you build the login yourself</td>
+</tr>
+<tr>
+<td>Setup effort</td>
+<td>Higher</td>
+<td>Lower</td>
+</tr>
+<tr>
+<td>Good fit for</td>
+<td>Apps with their own backend API and real user management</td>
+<td>Small mobile or IoT apps that only need to reach AWS</td>
+</tr>
+</tbody>
+</table></div>
+<p>The same choice exists for company logins (SAML or OIDC). Option A is the common default, because your API only ever has to understand one kind of token.</p>
+
+<h2 id="google-facebook-and-other-providers-the-credentials-behind-t">Google, Facebook and other providers: the credentials behind the buttons</h2>
+<p>When you add "Sign in with Google" to Cognito, or let an agent read a user's Google Drive through AgentCore Identity, <strong>Google treats Cognito or AgentCore as an app of its own</strong>. You register that app with Google, and Google gives you a <strong>client ID and client secret</strong> that you hand to Cognito or AgentCore. The same is true for Facebook, Apple, GitHub and the rest.</p>
+<p><strong>Why the providers issue credentials at all</strong></p>
+<p>Google will not hand a user's identity, or access to their data, to an unknown caller. Every app that asks Google to log someone in must first be registered, so Google knows:</p>
+<ul>
+<li><strong>who is asking</strong> (the client ID, shown to the user on the consent screen as your app's name),</li>
+<li><strong>that the request really comes from that app</strong> (the client secret, used on the back channel),</li>
+<li><strong>where it may send the user back</strong> (the registered redirect URI), and</li>
+<li><strong>what the app may ask for</strong> (the scopes on the consent screen).</li>
+</ul>
+<p>Cognito and AgentCore both run on AWS servers, so they are <strong>confidential clients</strong> of Google: they can keep the secret safe and use it when swapping Google's authorization code for tokens.</p>
+<h3>Part 1: Cognito and social providers (logging users in)</h3>
+<p>Here the goal is identity only: "this person is maya@gmail.com". The User Pool is Google's client, and your app never talks to Google.</p>
+<p><strong>What each provider gives you, and where it goes in Cognito</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Where you register</th>
+<th>What you get</th>
+<th>What you enter in the User Pool</th>
+<th>Typical scopes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Google</td>
+<td>Google Cloud Console → Credentials → OAuth client ID (type: Web application)</td>
+<td>Client ID and client secret</td>
+<td>Google client ID, client secret, authorized scopes</td>
+<td><code>openid email profile</code></td>
+</tr>
+<tr>
+<td>Facebook</td>
+<td>Meta for Developers → create an app → Facebook Login</td>
+<td>App ID and app secret</td>
+<td>App ID, app secret, authorized scopes, Graph API version</td>
+<td><code>public_profile,email</code></td>
+</tr>
+<tr>
+<td>Apple</td>
+<td>Apple Developer → a Services ID plus a Sign in with Apple key</td>
+<td>Services ID, Team ID, Key ID and a private key file (<code>.p8</code>), not a fixed secret</td>
+<td>Services ID, Team ID, Key ID, private key</td>
+<td><code>email name</code></td>
+</tr>
+<tr>
+<td>Login with Amazon</td>
+<td>Amazon Developer Console → security profile</td>
+<td>Client ID and client secret</td>
+<td>Client ID, client secret, scopes</td>
+<td><code>profile</code></td>
+</tr>
+<tr>
+<td>Any OIDC provider (Okta, Auth0, Entra ID in OIDC mode)</td>
+<td>That provider's admin console → new app registration</td>
+<td>Client ID, client secret, issuer URL</td>
+<td>Client ID, client secret, issuer URL, scopes</td>
+<td><code>openid email profile</code></td>
+</tr>
+<tr>
+<td>SAML providers (Entra ID, ADFS, Okta in SAML mode)</td>
+<td>That provider's admin console → new enterprise app</td>
+<td><strong>No</strong> client ID or secret; a <strong>metadata file</strong> with certificates instead</td>
+<td>The metadata file or its URL</td>
+<td>Not used; attributes come in the SAML assertion</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Setting up Google, step by step</strong></p>
+<ol>
+<li><strong>Give the User Pool a domain</strong>, such as <code>https://my-app.auth.us-east-1.amazoncognito.com</code>. Google will send users back here.</li>
+<li><strong>In Google Cloud Console</strong>, configure the OAuth consent screen (app name, support email, authorized domain <code>amazoncognito.com</code>), then create an OAuth client ID of type <em>Web application</em>.</li>
+<li><strong>Register Cognito's addresses at Google</strong>: authorized JavaScript origin <code>https://my-app.auth.us-east-1.amazoncognito.com</code>, and authorized redirect URI <code>https://my-app.auth.us-east-1.amazoncognito.com/oauth2/idpresponse</code>.</li>
+<li><strong>Copy Google's client ID and client secret.</strong></li>
+<li><strong>In the User Pool</strong>, add Google as an identity provider: paste the client ID and secret, set authorized scopes to <code>openid email profile</code>.</li>
+<li><strong>Map attributes</strong>: Google's <code>email</code> → <code>email</code>, <code>name</code> → <code>name</code>, <code>picture</code> → <code>picture</code>. Google's <code>sub</code> becomes the federated username (<code>Google_1098…</code>).</li>
+<li><strong>Enable Google on each app client</strong> that should show the button.</li>
+</ol>
+<p>Facebook follows the same pattern: the redirect URI registered in Meta for Developers is the same Cognito <code>/oauth2/idpresponse</code> address, and the App ID and app secret go into the User Pool.</p>
+<p><strong>What happens at login, and where each credential is used</strong></p>
+<ol>
+<li>Your app sends the browser to Cognito with <strong>your app's client ID</strong> (from the User Pool).</li>
+<li>Cognito sends the browser to Google with <strong>Cognito's Google client ID</strong>.</li>
+<li>The user signs in at Google and approves. Google sends the browser back to Cognito's <code>/oauth2/idpresponse</code> with a code.</li>
+<li>Cognito's servers call Google's token endpoint with the code plus <strong>Cognito's Google client ID and client secret</strong>. This is the only place Google's secret is ever used.</li>
+<li>Cognito reads who the user is: from Google's ID token (Google speaks OpenID Connect), or for Facebook, which is plain OAuth rather than OpenID Connect, by calling Facebook's Graph API with the access token it just received.</li>
+<li>Cognito creates or updates the federated user, then issues <strong>its own</strong> tokens to your app.</li>
+</ol>
+<p>Google's and Facebook's own tokens stay inside Cognito. Your app receives only Cognito tokens. If you need the user's Google data later, this login does not give you a usable Google token; that is AgentCore's job (Part 2).</p>
+<p><strong>When the Identity Pool trusts Google directly</strong></p>
+<p>In the "direct to Identity Pool" option, your app runs Google Sign-In itself, using <strong>its own</strong> Google client ID (often an Android or iOS client type with no secret). The Identity Pool is configured with that Google client ID only, and checks that Google's ID token was issued for it (the token's audience). It needs <strong>no secret</strong>, because it never swaps a code with Google; it only verifies a token the app already has.</p>
+<p><strong>Looking after the provider credentials</strong></p>
+<ul>
+<li>Treat Google's client secret and Facebook's app secret like passwords. They are stored in the User Pool's provider settings, not in your app.</li>
+<li>To rotate one, create a new secret at the provider, update it in the User Pool's identity provider settings, then delete the old secret at the provider.</li>
+<li>If you change the User Pool's domain, update the redirect URI at every provider, or their logins break.</li>
+<li>Google and Facebook may require app review or verification before showing your consent screen to the public, especially for sensitive scopes.</li>
+</ul>
+<h3>Part 2: AgentCore Identity and the same providers (acting for users)</h3>
+<p>AgentCore Identity uses Google and Facebook for a different purpose: not to find out who the user is, but to let an <strong>agent call the provider's APIs on the user's behalf</strong>, for example reading their Google Drive or Calendar.</p>
+<p><strong>Inbound and outbound, again</strong></p>
+<ul>
+<li><strong>Inbound (who may call the agent):</strong> AgentCore checks a JWT from an identity provider you configure, typically a Cognito User Pool, Okta, Entra ID or Auth0. If users sign in with Google, the usual pattern is Google → Cognito → your app → agent: Cognito federates Google exactly as in Part 1, and AgentCore trusts Cognito's tokens. Google is documented as an outbound provider for AgentCore, not an inbound one.</li>
+<li><strong>Outbound (what the agent may reach):</strong> this is where Google and Facebook register AgentCore as an app and give it credentials.</li>
+</ul>
+<p><strong>Registering AgentCore with Google, step by step</strong> (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-google.html" target="_blank" rel="noopener">AWS docs</a>)</p>
+<ol>
+<li><strong>In Google Cloud Console</strong>, configure the OAuth consent screen. Add <code>bedrock-agentcore.&lt;region&gt;.amazonaws.com</code> as an authorized domain, and add the API scopes the agent needs, such as <code>https://www.googleapis.com/auth/drive.readonly</code>.</li>
+<li><strong>Create an OAuth client ID</strong> and copy its client ID and client secret. Leave the redirect URIs empty for now.</li>
+<li><strong>Create a credential provider in AgentCore</strong> with <code>CreateOauth2CredentialProvider</code>: vendor <code>GoogleOauth2</code>, plus the client ID and client secret. AgentCore stores the secret in AWS Secrets Manager.</li>
+<li><strong>AgentCore returns a <code>callbackUrl</code></strong>, unique to this provider, such as <code>https://bedrock-agentcore.us-east-1.amazonaws.com/identities/oauth2/callback/&lt;id&gt;</code>.</li>
+<li><strong>Go back to Google</strong> and add that <code>callbackUrl</code> as an authorized redirect URI.</li>
+</ol>
+<p>Facebook works the same way with the <code>FacebookOauth2</code> vendor, using the App ID and app secret from Meta for Developers. AgentCore has built-in vendors for many providers, including Google, Facebook, GitHub, Slack, Salesforce, Microsoft, Atlassian, Okta and Cognito itself, and a <code>CustomOauth2</code> vendor for any other OAuth 2.0 provider (<a href="https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateOauth2CredentialProvider.html" target="_blank" rel="noopener">API reference</a>).</p>
+<p><strong>What happens when the agent needs a user's Google Drive</strong></p>
+<ol>
+<li>The agent asks AgentCore for a Google token for this user (<code>GetResourceOauth2Token</code>, naming the credential provider and the scopes).</li>
+<li>If the token vault already holds a valid token for this user, AgentCore returns it. Done.</li>
+<li>If not, AgentCore returns an <strong>authorization URL</strong>. The user opens it and approves access at Google.</li>
+<li>Google redirects to <strong>AgentCore's <code>callbackUrl</code></strong> with a code. AgentCore swaps it at Google's token endpoint using <strong>its own Google client ID and secret</strong>, and stores the resulting access and refresh tokens in the vault, tied to this user.</li>
+<li>AgentCore then sends the browser to <strong>your app's</strong> return URL so your app can confirm the user who approved is the right one (the session binding step described in the callback section).</li>
+<li>The agent asks again, receives the Google access token, and calls the Drive API.</li>
+</ol>
+<p>AgentCore also supports a machine-to-machine flow (client credentials) for providers where the agent acts as itself rather than for a user.</p>
+<h3>Putting the two together: three separate registrations</h3>
+<p>A full system where users sign in with Google <em>and</em> an agent reads their Drive involves three different client registrations:</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Client</th>
+<th>Registered with</th>
+<th>Credentials</th>
+<th>Redirect URI</th>
+<th>Purpose</th>
+<th>Scopes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Your app</td>
+<td>Cognito User Pool (app client)</td>
+<td>Your app's client ID (+ secret or PKCE)</td>
+<td>Your app's <code>/callback</code></td>
+<td>Users log into your app</td>
+<td><code>openid email</code> + custom API scopes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Cognito</td>
+<td>Google Cloud Console</td>
+<td>Google client ID + secret (for Cognito)</td>
+<td>Cognito's <code>/oauth2/idpresponse</code></td>
+<td>Google confirms who the user is</td>
+<td><code>openid email profile</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>AgentCore Identity</td>
+<td>Google Cloud Console</td>
+<td>Google client ID + secret (for AgentCore)</td>
+<td>AgentCore's <code>callbackUrl</code></td>
+<td>Agent calls Google APIs for the user</td>
+<td>e.g. <code>drive.readonly</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Registrations 2 and 3 can live in the same Google Cloud project, but they are <strong>separate OAuth clients</strong>: different redirect URIs, different scopes and different reasons to show the user a consent screen. Keeping them separate also means a leaked or rotated secret affects only one of them.</p>
+<p><strong>In one sentence:</strong> Google and Facebook give Cognito credentials so it can ask them <em>who the user is</em>, and give AgentCore Identity credentials so it can ask them <em>for access to the user's data</em>; your app holds neither secret.</p>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="clients-and-pkce.html"><span class="dir">&larr; Previous</span><span class="t">Clients, secrets and PKCE</span></a><a class="next" href="tokens-and-scopes.html"><span class="dir">Next &rarr;</span><span class="t">Tokens, scopes and resource servers</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

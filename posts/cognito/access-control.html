@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How Identity Pools pick IAM roles, and every layer that decides what a signed-in user can do.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Access control and IAM roles · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 6 of 12 · about 5 minutes</div>
+    <h1>Access control and IAM roles</h1>
+    <p class="dek">How Identity Pools pick IAM roles, and every layer that decides what a signed-in user can do.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li class="current"><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a><ul><li><a href="#iam-roles-and-identity-pools">IAM roles and Identity Pools</a></li><li><a href="#how-cognito-controls-what-a-signed-in-user-can-access">How Cognito controls what a signed-in user can access</a></li></ul></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="iam-roles-and-identity-pools">IAM roles and Identity Pools</h2>
+<p>An Identity Pool has no permissions of its own. Its job is to <strong>pick an IAM role</strong> for each user and get temporary credentials for it, so the role's rules decide exactly what the user can do in AWS.</p>
+<p><strong>A quick refresher on IAM roles</strong></p>
+<ul>
+<li>An <strong>IAM policy</strong> is a written rule, such as "allow reading files from the bucket <code>my-photos</code>".</li>
+<li>An <strong>IAM role</strong> is a named bundle of policies, for example <code>PhotoAppUserRole</code>.</li>
+<li>A role is not tied to one person. Anyone the role <em>trusts</em> can borrow it for a limited time. Borrowing a role is called <strong>assuming</strong> it.</li>
+<li>The role's <strong>trust policy</strong> says who is allowed to borrow it. Its <strong>permission policies</strong> say what the borrower can do.</li>
+</ul>
+<p><strong>What happens when a user asks the Identity Pool for access</strong></p>
+<ol>
+<li>The app sends the user's token (from the User Pool, Google, and so on).</li>
+<li>The Identity Pool checks the token and looks up or creates the user's identity ID.</li>
+<li>The Identity Pool chooses a role using rules you configured (see below).</li>
+<li>It asks AWS STS: "let this user assume this role". The technical name of that request is <code>AssumeRoleWithWebIdentity</code>.</li>
+<li>STS returns temporary credentials, by default valid for one hour.</li>
+<li>The app uses those credentials to call AWS. AWS checks every call against the role's permission policies.</li>
+</ol>
+<p><strong>How the role is chosen</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>How it works</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default roles</td>
+<td>Every signed-in user gets one role; guests (if allowed) get another, more limited role</td>
+<td>All users get <code>AppUserRole</code></td>
+</tr>
+<tr>
+<td>Role from the token</td>
+<td>Each User Pool group can be linked to a role; the token says which group, and so which role</td>
+<td>Users in group <code>admin</code> get <code>AdminRole</code></td>
+</tr>
+<tr>
+<td>Rules</td>
+<td>You write "if this claim has this value, use this role" rules, checked in order</td>
+<td>Users whose <code>department</code> is <code>finance</code> get <code>FinanceDataRole</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The trust policy: who may borrow the role</strong></p>
+<p>Each role used by an Identity Pool must say it trusts Cognito, and should be limited to <strong>your</strong> Identity Pool and to <strong>signed-in</strong> users. Without these conditions, another Identity Pool could borrow your role.</p>
+<pre><code class="language-json">&quot;Condition&quot;: {
+  &quot;StringEquals&quot;: { &quot;cognito-identity.amazonaws.com:aud&quot;: &quot;us-east-1:&lt;your-identity-pool-id&gt;&quot; },
+  &quot;ForAnyValue:StringLike&quot;: { &quot;cognito-identity.amazonaws.com:amr&quot;: &quot;authenticated&quot; }
+}
+</code></pre>
+<p>In plain words: "Only Cognito may hand out this role, only for this Identity Pool, and only to users who actually logged in."</p>
+<p><strong>One role, but each user sees only their own data</strong></p>
+<p>You do not need a separate role per user. A policy can include a placeholder that AWS fills in with the user's identity ID at the moment of each request:</p>
+<pre><code class="language-json">{
+  &quot;Effect&quot;: &quot;Allow&quot;,
+  &quot;Action&quot;: [&quot;s3:GetObject&quot;, &quot;s3:PutObject&quot;],
+  &quot;Resource&quot;: &quot;arn:aws:s3:::my-bucket/users/${cognito-identity.amazonaws.com:sub}/*&quot;
+}
+</code></pre>
+<p>This lets every user read and write only inside their own folder, <code>users/&lt;their-identity-id&gt;/</code>.</p>
+<p><strong>Using user details in permissions (ABAC)</strong></p>
+<p>Attribute-based access control means deciding access from the user's details. The Identity Pool can attach details such as <code>department</code> to the credentials as <strong>tags</strong>, and a policy can say "allow only if the user's department tag matches the resource's department tag".</p>
+
+<h2 id="how-cognito-controls-what-a-signed-in-user-can-access">How Cognito controls what a signed-in user can access</h2>
+<p>Cognito mostly <strong>labels</strong> users rather than <strong>guarding</strong> your resources. It writes groups, scopes and other facts into the token; something else, such as API Gateway, your own code, or AWS IAM, reads those labels and allows or blocks the request.</p>
+<p><strong>An analogy</strong></p>
+<p>A conference badge says "Speaker" or "Attendee". The badge printer (Cognito) does not stand at each door. The door staff (your API, or IAM) read the badge and decide whether to let you in.</p>
+<p><strong>The layers of control, from the outside in</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>What is being controlled</th>
+<th>How</th>
+<th>Who enforces it</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Which apps a user can log into, and with which buttons</td>
+<td>App client settings</td>
+<td>Cognito</td>
+<td>Only the internal app offers the company login</td>
+</tr>
+<tr>
+<td>Whether a user may log in at all</td>
+<td>Disabled accounts, MFA, custom checks run by a Lambda function before login</td>
+<td>Cognito</td>
+<td>Block sign-ins from email addresses outside your company</td>
+</tr>
+<tr>
+<td>The most an app can ever ask for</td>
+<td>Allowed scopes on the app client</td>
+<td>Cognito</td>
+<td>The reporting app can never get write access</td>
+</tr>
+<tr>
+<td>What a single API request may do</td>
+<td>The <code>scope</code> claim in the access token</td>
+<td>API Gateway (it has a built-in Cognito check) or your code</td>
+<td>Creating an order requires <code>orders-api/write</code></td>
+</tr>
+<tr>
+<td>Role-based rules (by job role)</td>
+<td>The <code>cognito:groups</code> claim</td>
+<td>Your code</td>
+<td>Only <code>admin</code> users may delete records</td>
+</tr>
+<tr>
+<td>Rules based on user details</td>
+<td>Custom claims, such as <code>custom:tenant_id</code></td>
+<td>Your code, or Amazon Verified Permissions (an AWS rules service)</td>
+<td>Each customer company sees only its own rows</td>
+</tr>
+<tr>
+<td>Direct access to AWS services</td>
+<td>The IAM role picked by the Identity Pool</td>
+<td>AWS IAM</td>
+<td>Users can open only their own S3 folder</td>
+</tr>
+<tr>
+<td>How long access lasts</td>
+<td>Token lifetimes; refresh tokens can be cancelled</td>
+<td>Cognito and your API</td>
+<td>Access tokens expire after 15 minutes</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Two things to always do</strong></p>
+<ul>
+<li><strong>Check every token in your API before trusting it.</strong> Verify the signature, that <code>iss</code> is your User Pool, that <code>exp</code> has not passed, that <code>token_use</code> is <code>access</code>, and that <code>client_id</code> is one of your apps. Standard libraries (such as <code>aws-jwt-verify</code>) do this for you.</li>
+<li><strong>Grant the least access needed.</strong> Give each app client only the scopes it really uses, and each IAM role only the actions it really needs.</li>
+</ul>
+<p><strong>When there is no user at all</strong></p>
+<p>A background service talking to your API (machine to machine) logs in as itself using the <strong>client credentials</strong> flow: it sends its client ID and secret and receives an access token. There are no users or groups here, so the token's <strong>scopes are the entire permission system</strong>.</p>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="tokens-and-scopes.html"><span class="dir">&larr; Previous</span><span class="t">Tokens, scopes and resource servers</span></a><a class="next" href="callbacks.html"><span class="dir">Next &rarr;</span><span class="t">Callback URLs and callback servers</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

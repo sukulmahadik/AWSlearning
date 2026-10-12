@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Authentication vs authorization, identity providers, tokens, JWTs, OAuth and IAM, then how Cognito&#x27;s pieces fit together.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>The basics · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 1 of 12 · about 5 minutes</div>
+    <h1>The basics</h1>
+    <p class="dek">Authentication vs authorization, identity providers, tokens, JWTs, OAuth and IAM, then how Cognito's pieces fit together.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li class="current"><a href="basics.html"><span class="num">01</span>The basics</a><ul><li><a href="#start-here-the-basic-ideas-in-plain-words">Start here: the basic ideas in plain words</a></li><li><a href="#the-big-picture">The big picture</a></li></ul></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="start-here-the-basic-ideas-in-plain-words">Start here: the basic ideas in plain words</h2>
+<p>This document assumes no prior knowledge of login systems. Read this section first; every later section builds on these eight ideas.</p>
+<p><strong>1. Authentication vs authorization</strong></p>
+<ul>
+<li><strong>Authentication</strong> means proving <em>who you are</em>. Typing a password, using Face ID, or clicking "Sign in with Google" are all authentication.</li>
+<li><strong>Authorization</strong> means deciding <em>what you are allowed to do</em> once we know who you are. Can you read this file? Delete that record?</li>
+<li>Everyday example: at an airport, showing your passport is authentication. Your boarding pass deciding which plane and seat you get is authorization.</li>
+</ul>
+<p><strong>2. Identity provider (IdP)</strong></p>
+<p>An identity provider is any service that keeps user accounts and can vouch for them. Google, Microsoft (Entra ID), Okta, Facebook and Apple are identity providers. When a website lets you "Sign in with Google", Google is the IdP: it checks your password and then tells the website "yes, this is really Maya".</p>
+<p><strong>3. Federation</strong></p>
+<p>Federation means one system agrees to accept another system's word about who a user is. If your app federates with Google, your app does not store passwords at all; it trusts Google's confirmation instead.</p>
+<p><strong>4. Token</strong></p>
+<p>A token is a digital pass handed to you after you log in. Instead of sending your password with every request, your app sends the token. Like a wristband at a concert, it is quick to check, says who you are and what you may do, and expires after a while.</p>
+<p><strong>5. JWT (JSON Web Token)</strong></p>
+<p>A JWT, pronounced "jot", is the most common token format. It is a long string with three parts separated by dots:</p>
+<ul>
+<li>a <strong>header</strong>, saying how it was signed</li>
+<li>a <strong>payload</strong>, holding facts about the user (these facts are called <strong>claims</strong>)</li>
+<li>a <strong>signature</strong>, a tamper-proof seal from whoever issued it</li>
+</ul>
+<p>Anyone can read the payload, but nobody can change it without breaking the signature. That is how an API can trust a token without calling the issuer every time.</p>
+<p><strong>6. OAuth 2.0 and OpenID Connect (OIDC)</strong></p>
+<ul>
+<li><strong>OAuth 2.0</strong> is a standard set of rules for letting an app get a token to access something on a user's behalf, without the app ever seeing the user's password. It is about <strong>authorization</strong>.</li>
+<li><strong>OIDC</strong> is a thin layer on top of OAuth 2.0 that adds <strong>authentication</strong>: it defines an <strong>ID token</strong> that says who the user is.</li>
+<li>Cognito, Google, Okta and almost every modern login system speak both.</li>
+</ul>
+<p><strong>7. Scopes and claims</strong></p>
+<ul>
+<li>A <strong>claim</strong> is a single fact inside a token, such as <code>email: maya@example.com</code> or <code>groups: admin</code>.</li>
+<li>A <strong>scope</strong> is a named permission the app asked for and was granted, such as <code>orders/read</code>. Scopes appear inside the token as one of its claims.</li>
+</ul>
+<p><strong>8. IAM role and STS</strong></p>
+<ul>
+<li>In AWS, <strong>IAM</strong> (Identity and Access Management) decides who can do what to which AWS resource.</li>
+<li>An <strong>IAM role</strong> is a named set of permissions, for example "may read files in this S3 bucket". Nobody owns a role permanently; you <em>borrow</em> it for a while.</li>
+<li><strong>STS</strong> (Security Token Service) is the AWS service that lends you a role: it hands out <strong>temporary credentials</strong> (a short-lived key) that carry that role's permissions, usually for about an hour.</li>
+</ul>
+
+<h2 id="the-big-picture">The big picture</h2>
+<p>Amazon Cognito is AWS's service for handling user logins so you don't have to build them yourself. It has two main parts that do different jobs: a <strong>User Pool</strong> checks who the user is, and an <strong>Identity Pool</strong> gives that user temporary permission to use AWS services.</p>
+<p><strong>An office building analogy</strong></p>
+<p>Imagine visiting a large office building:</p>
+<ol>
+<li>You arrive at the <strong>front desk</strong>. They check your ID (or phone your employer to confirm you work there) and print you a <strong>visitor badge</strong> with your name and department. → This is the <strong>User Pool</strong>. The badge is a <strong>token</strong>.</li>
+<li>Your employer vouching for you over the phone is like <strong>Google or your company's login</strong> confirming who you are. → These are <strong>identity providers</strong>.</li>
+<li>The front desk only deals with approved companies, and each company has a registered account number with the building. → That account number is a <strong>client ID</strong>; it identifies <em>which app</em> is asking.</li>
+<li>To open doors, you take your badge to the <strong>key-card office</strong>, which gives you a key card that opens certain floors and expires tonight. → This is the <strong>Identity Pool</strong>. The key card is a set of <strong>temporary AWS credentials</strong>, and the list of doors it opens is an <strong>IAM role</strong>.</li>
+</ol>
+<p><strong>Who does what</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Plain-English job</th>
+<th>What it hands out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identity provider (Google, Okta, the User Pool itself)</td>
+<td>Checks the password and confirms who the user is</td>
+<td>Proof of identity</td>
+</tr>
+<tr>
+<td>User Pool</td>
+<td>Keeps your app's list of users and runs the login</td>
+<td>Tokens (ID, access, refresh)</td>
+</tr>
+<tr>
+<td>App client (client ID and secret)</td>
+<td>Identifies which application is asking Cognito for a login</td>
+<td>Nothing; it is a registration</td>
+</tr>
+<tr>
+<td>Identity Pool</td>
+<td>Swaps a token for temporary AWS access</td>
+<td>Temporary AWS credentials</td>
+</tr>
+<tr>
+<td>IAM role</td>
+<td>The list of AWS actions those credentials allow</td>
+<td>Permissions</td>
+</tr>
+</tbody>
+</table></div>
+<p>The diagram below shows how these connect. Each arrow is a relationship where one side trusts the other.</p>
+<figure>
+      <div class="diagram">
+        <svg viewBox="0 0 760 322" role="img" aria-label="Your app trusts Cognito; Cognito trusts Google">
+          <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs>
+          <text x="24" y="34" style="fill:var(--fg);font-family:var(--display);font-weight:700;font-size:16px">Your app trusts Cognito; Cognito trusts Google</text>
+          <g style="fill:none;stroke:var(--muted);stroke-width:1.25">
+            <path d="M196 130H294" marker-end="url(#arr)"/><path d="M466 130H564" marker-end="url(#arr)"/>
+            <path d="M110 158V242" marker-end="url(#arr)"/><path d="M380 158V242" marker-end="url(#arr)"/>
+            <path d="M466 270H564" marker-end="url(#arr)"/>
+          </g>
+          <g style="font-family:var(--display);font-size:13px">
+            <rect x="24" y="102" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="110" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Your app</text>
+            <text x="110" y="146" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">client of Cognito</text>
+            <rect x="294" y="102" width="172" height="56" rx="8" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:2"/>
+            <text x="380" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Cognito User Pool</text>
+            <text x="380" y="146" text-anchor="middle" style="fill:var(--fg);font-size:11.5px">broker: issues JWTs</text>
+            <rect x="564" y="102" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="650" y="126" text-anchor="middle" style="fill:var(--fg);font-weight:700">Google</text>
+            <text x="650" y="146" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">external IdP</text>
+            <rect x="24" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="110" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">Your API</text>
+            <text x="110" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">validates the JWT</text>
+            <rect x="294" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="380" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">Identity Pool</text>
+            <text x="380" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">picks an IAM role</text>
+            <rect x="564" y="242" width="172" height="56" rx="8" style="fill:var(--surface);stroke:var(--muted);stroke-width:1.25"/>
+            <text x="650" y="266" text-anchor="middle" style="fill:var(--fg);font-weight:700">AWS services</text>
+            <text x="650" y="286" text-anchor="middle" style="fill:var(--muted);font-size:11.5px">S3, DynamoDB via IAM</text>
+          </g>
+          <g style="font-family:var(--display);font-size:11.5px;fill:var(--muted)">
+            <text x="245" y="90" text-anchor="middle">your app client ID</text>
+            <text x="515" y="90" text-anchor="middle">Cognito's Google client ID</text>
+            <text x="120" y="204">access token</text>
+            <text x="390" y="204">ID token</text>
+            <text x="515" y="260" text-anchor="middle">AWS credentials</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>Each arrow is a trust relationship with its own registration; the User Pool is a client of Google and an identity provider to your app at the same time.</figcaption>
+    </figure>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="../cognito-explained.html"><span class="dir">&larr; Back to</span><span class="t">All chapters</span></a><a class="next" href="pools.html"><span class="dir">Next &rarr;</span><span class="t">User Pools and Identity Pools</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

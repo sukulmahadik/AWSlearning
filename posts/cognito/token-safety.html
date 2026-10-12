@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Revoking access, where to keep tokens safely, and a worked example of validating them in your API.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Logging out, storing and checking tokens · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 2 · When you build</span></div>
+    <div class="eyebrow">Chapter 8 of 12 · about 5 minutes</div>
+    <h1>Logging out, storing and checking tokens</h1>
+    <p class="dek">Revoking access, where to keep tokens safely, and a worked example of validating them in your API.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li class="current"><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a><ul><li><a href="#logging-out-and-cancelling-tokens">Logging out and cancelling tokens</a></li><li><a href="#where-to-keep-tokens-in-a-browser-or-app">Where to keep tokens in a browser or app</a></li><li><a href="#checking-tokens-in-your-api-a-worked-example">Checking tokens in your API: a worked example</a></li></ul></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="logging-out-and-cancelling-tokens">Logging out and cancelling tokens</h2>
+<p>Logging out is harder than logging in, because an access token that has already been handed out <strong>keeps working until it expires</strong>. You can cancel the refresh token, but your own API may still accept a copied access token for up to its remaining lifetime.</p>
+<p><strong>Why access tokens can't simply be switched off</strong></p>
+<p>Your API checks a token by verifying its signature with Cognito's public keys. It does not phone Cognito each time; that is what makes tokens fast. The downside: if Cognito cancels a token, your API has no way of knowing, unless you add an extra check.</p>
+<p><strong>What actually happens on logout</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Action</th>
+<th>What it does</th>
+<th>What it does not do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App deletes its stored tokens</td>
+<td>The app forgets the user, so they look logged out</td>
+<td>A copy stolen earlier still works until expiry</td>
+</tr>
+<tr>
+<td><code>RevokeToken</code> (cancel a refresh token)</td>
+<td>The refresh token can no longer get new tokens; Cognito's own APIs also reject access tokens issued from it</td>
+<td>Your API, checking signatures locally, still accepts those access tokens until they expire</td>
+</tr>
+<tr>
+<td><code>GlobalSignOut</code></td>
+<td>Cancels all of the user's refresh tokens, on every device</td>
+<td>Same limit as above</td>
+</tr>
+<tr>
+<td>Visit Cognito's <code>/logout</code> address</td>
+<td>Clears Cognito's login session cookie, so the login page asks for the password next time</td>
+<td>Does not sign the user out of Google or their company login</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Practical advice</strong></p>
+<ul>
+<li><strong>Keep access tokens short-lived</strong>, for example 5 to 15 minutes. A stolen token then becomes useless quickly, and refresh tokens keep users logged in meanwhile.</li>
+<li>On logout, <strong>do all three</strong>: delete tokens in the app, revoke the refresh token, and send the browser to <code>/logout</code> if you use Cognito's login page.</li>
+<li>If you truly need instant cut-off (for example, a fired employee), keep a short <strong>block list</strong> of revoked token IDs (<code>jti</code>) or users that your API checks, or call Cognito to check the token for sensitive actions.</li>
+</ul>
+
+<h2 id="where-to-keep-tokens-in-a-browser-or-app">Where to keep tokens in a browser or app</h2>
+<p>Whoever holds a token can act as the user, so where the app stores tokens matters as much as how it gets them. For websites, the safest common pattern is to keep tokens <strong>on your server</strong> and give the browser only a secure cookie.</p>
+<p><strong>The main threat: XSS</strong></p>
+<p><em>Cross-site scripting (XSS)</em> means an attacker manages to run their own JavaScript on your web page, for example through an unsafe third-party script. Any token that page's JavaScript can read, the attacker's script can read too, and send away.</p>
+<p><strong>Options for websites</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>How it works</th>
+<th>Risk</th>
+<th>Good for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>localStorage</code> / <code>sessionStorage</code></td>
+<td>Browser storage that JavaScript can read</td>
+<td>Stolen easily by XSS; <code>localStorage</code> also survives closing the browser</td>
+<td>Prototypes only</td>
+</tr>
+<tr>
+<td>Memory (a JavaScript variable)</td>
+<td>Kept only while the page is open</td>
+<td>Still readable by XSS while the page is open; lost on refresh, so users re-login or silently refresh</td>
+<td>Single-page apps that refresh often</td>
+</tr>
+<tr>
+<td>HTTP-only cookie set by your server</td>
+<td>The browser sends it automatically; JavaScript cannot read it</td>
+<td>XSS cannot steal it, but needs protection against forged requests (CSRF), e.g. <code>SameSite</code> cookies</td>
+<td>Most production websites</td>
+</tr>
+<tr>
+<td>Backend-for-frontend (BFF)</td>
+<td>Your server holds the tokens and gives the browser only a session cookie</td>
+<td>The browser never sees a token at all</td>
+<td>The most secure option for websites</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Mobile and desktop apps</strong></p>
+<p>Use the operating system's secure store: <strong>Keychain</strong> on iPhone and Mac, <strong>Keystore</strong> on Android, the credential manager on Windows. Never store tokens in plain files or ordinary app settings.</p>
+<p><strong>Services and scripts</strong></p>
+<p>Keep the <strong>client secret</strong> in a secrets manager such as AWS Secrets Manager, not in code or in git. Tokens can stay in memory and be fetched again when they expire.</p>
+<p><strong>Refresh tokens deserve the most care</strong>, because they last longest (30 days by default). Cognito can <strong>rotate</strong> refresh tokens, issuing a new one each time it is used, so a stolen old one stops working.</p>
+
+<h2 id="checking-tokens-in-your-api-a-worked-example">Checking tokens in your API: a worked example</h2>
+<p>Before your API trusts anything in a token, it must confirm six things: the signature is genuine, it came from your User Pool, it has not expired, it is the right kind of token, it was issued to one of your apps, and it carries the permission this endpoint needs. A ready-made library does all of this in a few lines.</p>
+<p><strong>The checks, in order</strong></p>
+<ol>
+<li><strong>Signature</strong>: fetch the User Pool's public keys from <code>https://cognito-idp.&lt;region&gt;.amazonaws.com/&lt;user-pool-id&gt;/.well-known/jwks.json</code> (cache them), pick the key matching the token's <code>kid</code>, and verify.</li>
+<li><strong>Issuer</strong> (<code>iss</code>): must equal <code>https://cognito-idp.&lt;region&gt;.amazonaws.com/&lt;user-pool-id&gt;</code>.</li>
+<li><strong>Expiry</strong> (<code>exp</code>): must be in the future.</li>
+<li><strong>Kind</strong> (<code>token_use</code>): must be <code>access</code> for API calls.</li>
+<li><strong>App</strong> (<code>client_id</code>): must be one of your app clients.</li>
+<li><strong>Permission</strong>: the <code>scope</code> claim (or <code>cognito:groups</code>) must include what this endpoint needs.</li>
+</ol>
+<p><strong>JavaScript / TypeScript, using AWS's <code>aws-jwt-verify</code> library</strong></p>
+<pre><code class="language-javascript">import { CognitoJwtVerifier } from &quot;aws-jwt-verify&quot;;
+
+const verifier = CognitoJwtVerifier.create({
+  userPoolId: &quot;us-east-1_AbC123&quot;,
+  tokenUse: &quot;access&quot;,            // check 4
+  clientId: &quot;4abcexampleclientid&quot;, // check 5
+  scope: &quot;orders-api/read&quot;,      // check 6
+});
+
+// Checks 1-3 happen inside verify(); it throws if anything is wrong.
+const claims = await verifier.verify(tokenFromAuthorizationHeader);
+console.log(&quot;Request from&quot;, claims.sub);
+</code></pre>
+<p><strong>Python, using <code>PyJWT</code></strong></p>
+<pre><code class="language-python">import jwt
+from jwt import PyJWKClient
+
+REGION = &quot;us-east-1&quot;
+POOL_ID = &quot;us-east-1_AbC123&quot;
+CLIENT_ID = &quot;4abcexampleclientid&quot;
+ISSUER = f&quot;https://cognito-idp.{REGION}.amazonaws.com/{POOL_ID}&quot;
+jwks = PyJWKClient(f&quot;{ISSUER}/.well-known/jwks.json&quot;)  # caches keys
+
+def verify_access_token(token: str, required_scope: str) -&gt; dict:
+    signing_key = jwks.get_signing_key_from_jwt(token).key          # check 1
+    claims = jwt.decode(
+        token, signing_key, algorithms=[&quot;RS256&quot;],
+        issuer=ISSUER,                                              # check 2
+        options={&quot;verify_aud&quot;: False},  # access tokens have no 'aud'
+    )                                                               # check 3 (exp) is automatic
+    if claims.get(&quot;token_use&quot;) != &quot;access&quot;:                        # check 4
+        raise PermissionError(&quot;not an access token&quot;)
+    if claims.get(&quot;client_id&quot;) != CLIENT_ID:                       # check 5
+        raise PermissionError(&quot;unknown app&quot;)
+    if required_scope not in claims.get(&quot;scope&quot;, &quot;&quot;).split():      # check 6
+        raise PermissionError(&quot;missing scope&quot;)
+    return claims
+</code></pre>
+<p><strong>Where the token comes from</strong>: the app sends it in the request header <code>Authorization: Bearer &lt;access token&gt;</code>.</p>
+<p><strong>Or let AWS do it</strong>: if your API sits behind API Gateway, a Cognito authorizer performs these checks before your code runs (see "Choosing an API Gateway authorizer" below).</p>
+<p><strong>Common mistakes</strong></p>
+<ul>
+<li>Decoding the payload without checking the signature. Anyone can forge an unsigned payload.</li>
+<li>Accepting ID tokens at the API. They describe the user but are not meant to grant access.</li>
+<li>Fetching the public keys on every request instead of caching them.</li>
+</ul>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="callbacks.html"><span class="dir">&larr; Previous</span><span class="t">Callback URLs and callback servers</span></a><a class="next" href="building-login.html"><span class="dir">Next &rarr;</span><span class="t">Building the login experience</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

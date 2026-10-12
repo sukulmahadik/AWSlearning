@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Why logins come back through the browser, why OAuth uses a code, and what a callback server implements.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Callback URLs and callback servers · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 7 of 12 · about 11 minutes</div>
+    <h1>Callback URLs and callback servers</h1>
+    <p class="dek">Why logins come back through the browser, why OAuth uses a code, and what a callback server implements.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li class="current"><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<span id="callback-urls-and-callback-servers"></span>
+<p>A <strong>callback URL</strong> is the web address the login service sends the user's browser back to once login is finished. Something must be running at that address to receive the result; during testing, that "something" is a small temporary web server on your own computer, called a <strong>callback server</strong>.</p>
+<p><strong>Why login results arrive this way</strong></p>
+<p>You might expect your code to call Cognito and simply get tokens back. For logins involving a user, it does not work like that, because the user must type their password on Cognito's (or Google's) own page, not in your app. So the flow is:</p>
+<ol>
+<li>Your app sends the user's <strong>browser</strong> to the login page.</li>
+<li>The user logs in there.</li>
+<li>The login service sends the browser <strong>back</strong> to the callback URL, attaching a short-lived <strong>authorization code</strong>, for example: <code>https://app.example.com/callback?code=abc123&amp;state=xyz</code>.</li>
+<li>Whatever is listening at that URL picks up the code and swaps it with Cognito for real tokens.</li>
+</ol>
+<p>The code is a claim ticket, not the prize: it is worthless without the app's client secret or PKCE proof, and it expires within minutes.</p>
+<h3>Why an authorization code? Why not send the tokens directly?</h3>
+<p>Because the redirect back to your app travels <strong>through the browser</strong>, where it is easy to see and steal, while the code-for-tokens swap travels <strong>directly between your app and Cognito</strong>, where nobody else can see it. The code is a harmless claim ticket; the tokens are the valuables, so they never ride through the browser.</p>
+<p><strong>Two kinds of channel</strong></p>
+<ul>
+<li>The <strong>front channel</strong> is anything passed through the user's browser: redirects and the addresses they carry. It is the only way to bring the user back to your app, but it is leaky. Addresses end up in browser history, server logs and proxy logs, can be read by browser extensions, and on phones can be grabbed by a malicious app that registers the same callback address.</li>
+<li>The <strong>back channel</strong> is a direct HTTPS request from your app (or its server) to Cognito's <code>/oauth2/token</code> address. Nothing passes through the browser, and the app chose whom it is talking to.</li>
+</ul>
+<p>The authorization code flow puts only the code on the front channel and the tokens on the back channel.</p>
+<p><strong>Why that split matters</strong></p>
+<ol>
+<li><strong>A stolen code is useless on its own.</strong> To swap it, the thief would also need the client secret or the PKCE code verifier, which never appeared in the browser. A stolen <em>token</em> would work immediately.</li>
+<li><strong>The code is short-lived and single-use.</strong> It expires within minutes and Cognito accepts it only once, so even a leaked code has a tiny window.</li>
+<li><strong>The app proves who it is at the swap.</strong> The redirect cannot prove which app receives it, but the token request can, with the client secret or PKCE. Tokens are only ever handed to the genuine app.</li>
+<li><strong>Refresh tokens become possible.</strong> Long-lived refresh tokens are too dangerous to put in a browser address, so a token-in-the-redirect design gives none, and users must log in again every hour. The back channel can safely deliver one.</li>
+<li><strong>The app knows the tokens are genuine and meant for it.</strong> Tokens arrive as the answer to a request the app itself made, so an attacker cannot slip in a stolen token by crafting a fake redirect (a <em>token injection</em> attack).</li>
+</ol>
+<p><strong>The old way: the implicit flow</strong></p>
+<p>OAuth used to offer exactly what you are asking about. In the <strong>implicit flow</strong> (<code>response_type=token</code>), the tokens came back in the redirect itself, after a <code>#</code> in the address. It was designed in the days before browsers could make cross-site requests, when single-page apps had no other option.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Implicit flow (tokens in the redirect)</th>
+<th>Authorization code flow (+ PKCE)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What travels through the browser</td>
+<td>The tokens themselves</td>
+<td>Only a short-lived, single-use code</td>
+</tr>
+<tr>
+<td>If the redirect is intercepted</td>
+<td>The attacker can use the tokens right away</td>
+<td>The attacker cannot swap the code without the secret or verifier</td>
+</tr>
+<tr>
+<td>Proves which app receives the tokens</td>
+<td>No</td>
+<td>Yes, with the client secret or PKCE</td>
+</tr>
+<tr>
+<td>Refresh token</td>
+<td>Not issued</td>
+<td>Issued</td>
+</tr>
+<tr>
+<td>Exposure in history, logs, extensions</td>
+<td>High</td>
+<td>Only the harmless code</td>
+</tr>
+<tr>
+<td>Status today</td>
+<td>Discouraged by current OAuth security guidance and dropped from OAuth 2.1</td>
+<td>The recommended flow for every kind of app</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cognito still lets an app client enable the implicit grant for older apps. Leave it switched off, and use the authorization code flow with PKCE instead.</p>
+<p><strong>An analogy</strong></p>
+<p>A courier with a valuable parcel doesn't leave it on your doorstep, where anyone walking by could take it. They leave a <strong>collection slip</strong> (the code) in your letterbox. You then go to the depot counter (the back channel) and show the slip <strong>and your ID</strong> (the client secret or PKCE verifier) to collect the parcel (the tokens). Someone who steals the slip from your letterbox still can't collect your parcel.</p>
+<p>Two safety features:</p>
+<ul>
+<li><strong>Exact registration.</strong> Cognito only sends users back to callback URLs you registered on the app client. This stops an attacker tricking Cognito into delivering codes to their own website.</li>
+<li><strong>The <code>state</code> value.</strong> The app sends a random value at the start and checks it comes back unchanged. This blocks a forged login response.</li>
+</ul>
+<p><strong>Callback URLs at each link of the chain</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Relationship</th>
+<th>Where it is registered</th>
+<th>Address</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cognito sends the user back to your app</td>
+<td>Your app client in the User Pool</td>
+<td><code>https://app.example.com/callback</code></td>
+</tr>
+<tr>
+<td>Google sends the user back to Cognito</td>
+<td>Google Cloud Console</td>
+<td><code>https://&lt;your-domain&gt;.auth.&lt;region&gt;.amazoncognito.com/oauth2/idpresponse</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Testing vs production</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Testing (a notebook, script or command-line tool)</th>
+<th>Production</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What is listening</td>
+<td>A temporary mini web server on your own computer, at <code>http://localhost:&lt;port&gt;/callback</code></td>
+<td>A <code>/callback</code> page on your real website or backend server</td>
+</tr>
+<tr>
+<td>Registered address</td>
+<td>e.g. <code>http://localhost:8080/callback</code>. Cognito allows plain <code>http</code> only for localhost</td>
+<td>An <code>https://</code> address on your domain</td>
+</tr>
+<tr>
+<td>How long it runs</td>
+<td>Only for the few seconds of the login, then it shuts down</td>
+<td>All the time</td>
+</tr>
+<tr>
+<td>Who swaps the code for tokens</td>
+<td>Your script, usually with PKCE</td>
+<td>Your server using the client secret, or the browser app using PKCE</td>
+</tr>
+<tr>
+<td>Mobile apps</td>
+<td>Not applicable</td>
+<td>A special app link such as <code>myapp://callback</code> that opens your app</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Why testing needs a callback server</strong></p>
+<p>A Jupyter notebook or a Python script has no website, so when the browser is sent back after login, there is nowhere for it to go. Starting a tiny server on <code>localhost</code> gives the browser somewhere to land, and lets the script catch the code. Familiar tools do the same: <code>gcloud auth login</code> and <code>gh auth login</code> briefly start a local server for exactly this reason. It is the recommended pattern for desktop and command-line apps.</p>
+<h3>What a callback server actually does: its methods</h3>
+<p>A callback server is small. For an ordinary Cognito login it answers <strong>one main route</strong>, <code>GET /callback</code>, plus an optional health check; everything else is helper code around it. Agent platforms add one more route of their own.</p>
+<p><strong>The routes it answers</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Route</th>
+<th>HTTP method</th>
+<th>Called by</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/callback</code></td>
+<td>GET</td>
+<td>The user's browser, redirected by Cognito after login</td>
+<td>Reads <code>code</code> and <code>state</code> (or <code>error</code>), checks <code>state</code>, swaps the code for tokens, shows a "you can close this tab" page</td>
+</tr>
+<tr>
+<td><code>/ping</code> or <code>/health</code> (optional)</td>
+<td>GET</td>
+<td>Your own script or a load balancer</td>
+<td>Confirms the server is running before the login starts</td>
+</tr>
+<tr>
+<td>Agent callback, e.g. <code>/oauth2/callback?session_id=...</code> (agent platforms only)</td>
+<td>GET</td>
+<td>The browser, redirected by AgentCore Identity after the user approves an outside service</td>
+<td>Checks the logged-in user, then calls <code>CompleteResourceTokenAuth</code> (see below)</td>
+</tr>
+</tbody>
+</table></div>
+<p>The main route is a <strong>GET</strong> because the browser arrives by following a redirect, and redirects are always followed with GET; the code travels in the address's query string. Some identity providers can post the result to the callback instead (<code>response_mode=form_post</code>, a <strong>POST</strong>), but Cognito's standard flow uses GET.</p>
+<p><strong>What happens inside the <code>/callback</code> handler, step by step</strong></p>
+<ol>
+<li><strong>Read the query string.</strong> On success it holds <code>code</code> and <code>state</code>. If the user cancelled or something failed, it holds <code>error</code> (for example <code>access_denied</code>) and <code>error_description</code> instead; show that to the user and stop.</li>
+<li><strong>Check <code>state</code>.</strong> It must equal the random value the app created just before sending the user to log in. A mismatch means the response may be forged, so reject it.</li>
+<li><strong>Swap the code for tokens.</strong> Send a <strong>POST</strong> to Cognito's token address, <code>https://&lt;your-domain&gt;.auth.&lt;region&gt;.amazoncognito.com/oauth2/token</code>, with a form body containing <code>grant_type=authorization_code</code>, the <code>code</code>, the same <code>redirect_uri</code> used at the start (it must match exactly), the <code>client_id</code>, and either the PKCE <code>code_verifier</code> or the client secret (sent in an <code>Authorization: Basic</code> header).</li>
+<li><strong>Receive the tokens.</strong> Cognito replies with JSON containing <code>id_token</code>, <code>access_token</code>, <code>refresh_token</code>, <code>expires_in</code> and <code>token_type</code>.</li>
+<li><strong>Check the ID token</strong> before trusting it: signature, issuer, audience (your client ID) and expiry.</li>
+<li><strong>Hand the tokens over.</strong> In testing, pass them to the waiting script in memory. In production, store them on the server and give the browser a session cookie.</li>
+<li><strong>Answer the browser.</strong> In testing, a plain "Login complete, you can close this tab" page. In production, a redirect to the app's home page.</li>
+<li><strong>Shut down</strong> (testing only). The temporary server stops once it has the tokens, or after a timeout such as two minutes.</li>
+</ol>
+<p><strong>Helper functions around it</strong></p>
+<ul>
+<li><strong>Start the login</strong>: pick a port, create <code>state</code> and the PKCE verifier and challenge, build the <code>/oauth2/authorize</code> address, and open the browser.</li>
+<li><strong>Wait</strong>: block until the callback has delivered tokens or an error, with a timeout.</li>
+<li><strong>Refresh</strong> (production): later, POST to <code>/oauth2/token</code> with <code>grant_type=refresh_token</code> to get new tokens without a new login.</li>
+</ul>
+<p><strong>A minimal local callback server in Python</strong> (standard library only)</p>
+<pre><code class="language-python">import base64, hashlib, http.server, json, secrets, threading, urllib.parse, urllib.request, webbrowser
+
+DOMAIN = &quot;https://my-app.auth.us-east-1.amazoncognito.com&quot;
+CLIENT_ID = &quot;4abcexampleclientid&quot;
+REDIRECT_URI = &quot;http://localhost:8080/callback&quot;   # registered on the app client
+
+state = secrets.token_urlsafe(16)                   # CSRF protection
+verifier = secrets.token_urlsafe(64)                # PKCE secret, never leaves this script
+challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b&quot;=&quot;).decode()
+result, done = {}, threading.Event()
+
+class CallbackHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):                               # the browser returns here with GET
+        url = urllib.parse.urlparse(self.path)
+        if url.path == &quot;/ping&quot;:                     # optional health check
+            return self.reply(200, &quot;ok&quot;)
+        if url.path != &quot;/callback&quot;:
+            return self.reply(404, &quot;Not found&quot;)
+        q = urllib.parse.parse_qs(url.query)
+        if &quot;error&quot; in q:                            # user cancelled or login failed
+            result[&quot;error&quot;] = q[&quot;error&quot;][0]
+        elif q.get(&quot;state&quot;, [&quot;&quot;])[0] != state:      # forged or stale response
+            result[&quot;error&quot;] = &quot;state mismatch&quot;
+        else:
+            result[&quot;tokens&quot;] = exchange_code(q[&quot;code&quot;][0])
+        self.reply(200, &quot;Login complete. You can close this tab.&quot;)
+        done.set()
+
+    def reply(self, status, text):
+        self.send_response(status)
+        self.send_header(&quot;Content-Type&quot;, &quot;text/plain; charset=utf-8&quot;)
+        self.end_headers()
+        self.wfile.write(text.encode())
+
+def exchange_code(code):                            # POST the code to Cognito's token address
+    body = urllib.parse.urlencode({
+        &quot;grant_type&quot;: &quot;authorization_code&quot;, &quot;code&quot;: code,
+        &quot;redirect_uri&quot;: REDIRECT_URI, &quot;client_id&quot;: CLIENT_ID,
+        &quot;code_verifier&quot;: verifier,                  # PKCE proof instead of a client secret
+    }).encode()
+    req = urllib.request.Request(f&quot;{DOMAIN}/oauth2/token&quot;, data=body,
+                                 headers={&quot;Content-Type&quot;: &quot;application/x-www-form-urlencoded&quot;})
+    with urllib.request.urlopen(req) as resp:
+        return json.load(resp)                      # id_token, access_token, refresh_token
+
+server = http.server.HTTPServer((&quot;localhost&quot;, 8080), CallbackHandler)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+webbrowser.open(f&quot;{DOMAIN}/oauth2/authorize?&quot; + urllib.parse.urlencode({
+    &quot;response_type&quot;: &quot;code&quot;, &quot;client_id&quot;: CLIENT_ID, &quot;redirect_uri&quot;: REDIRECT_URI,
+    &quot;scope&quot;: &quot;openid email&quot;, &quot;state&quot;: state,
+    &quot;code_challenge&quot;: challenge, &quot;code_challenge_method&quot;: &quot;S256&quot;}))
+done.wait(timeout=120)                              # wait up to two minutes
+server.shutdown()
+print(result.get(&quot;error&quot;) or f&quot;Got tokens: {list(result['tokens'])}&quot;)
+</code></pre>
+<p>This sketch skips step 5 (checking the ID token) to stay short; use the checks from "Checking tokens in your API" before trusting the tokens.</p>
+<p><strong>The extra route in agent platforms (AgentCore Identity)</strong></p>
+<p>When an agent needs a user's approval for an outside service, AgentCore Identity sends the browser to <strong>your</strong> registered return address with a <code>session_id</code> in the query string (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/oauth2-authorization-url-session-binding.html" target="_blank" rel="noopener">AWS docs</a>). That handler:</p>
+<ol>
+<li>Reads <code>session_id</code>; if it is missing, answers with an error (AWS's sample returns HTTP 400).</li>
+<li>Finds out who is logged into <strong>your</strong> app in this browser, from your own session cookie.</li>
+<li>If that is the same user the agent was working for, calls <code>CompleteResourceTokenAuth</code> with the session (<code>sessionUri</code>) and the user (<code>userIdentifier</code>, either the user's original login token or their user ID).</li>
+<li>If the users differ, does nothing (and may log it), so a leaked approval link cannot attach a stranger's account.</li>
+</ol>
+<p>The agent then asks AgentCore for the token again and receives it. Each approval link is valid for 10 minutes, and the return address must be registered as an allowed return URL on the agent's workload identity. For local testing, the AgentCore developer tooling can host this endpoint for you.</p>
+<p><strong>In AI agent platforms (for example AgentCore Identity)</strong></p>
+<p>When an agent needs access to a service such as Google Drive on a user's behalf, the user must approve it in their browser. The provider sends the browser to the agent platform's own callback, which stores the resulting token. The platform then sends the browser on to <em>your</em> app's callback, so your app can confirm that the person who approved is the same user the agent is working for. That check stops a leaked approval link from attaching a stranger's account. Locally this is the localhost server; in production, a route on your app.</p>
+<p><strong>When no callback is needed</strong></p>
+<p>If no person is logging in, for example a background service using the client credentials flow, or a service using a fixed API key, there is no browser and no approval screen, so there is nothing to send back and no callback URL is needed.</p>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="access-control.html"><span class="dir">&larr; Previous</span><span class="t">Access control and IAM roles</span></a><a class="next" href="token-safety.html"><span class="dir">Next &rarr;</span><span class="t">Logging out, storing and checking tokens</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

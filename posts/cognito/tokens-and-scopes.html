@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="What is inside ID, access and refresh tokens, and how resource servers and custom scopes work.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Tokens, scopes and resource servers · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 5 of 12 · about 9 minutes</div>
+    <h1>Tokens, scopes and resource servers</h1>
+    <p class="dek">What is inside ID, access and refresh tokens, and how resource servers and custom scopes work.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li class="current"><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a><ul><li><a href="#what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</a></li><li><a href="#resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</a></li></ul></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</h2>
+<p>A Cognito token is a JWT: a sealed envelope of facts. Each fact is called a <strong>claim</strong>. One of those claims, <code>scope</code>, lists the <strong>scopes</strong>, meaning the permissions the token carries.</p>
+<p><strong>The three tokens and their jobs</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Its job in one sentence</th>
+<th>Who reads it</th>
+<th>Default lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ID token</td>
+<td>Tells the app who the user is (name, email)</td>
+<td>Your app's screens, and the Identity Pool</td>
+<td>1 hour (adjustable from 5 minutes to 1 day)</td>
+</tr>
+<tr>
+<td>Access token</td>
+<td>Tells your API what this request may do</td>
+<td>Your API</td>
+<td>1 hour (adjustable from 5 minutes to 1 day)</td>
+</tr>
+<tr>
+<td>Refresh token</td>
+<td>Gets new ID and access tokens without logging in again</td>
+<td>Your app, quietly in the background</td>
+<td>30 days (adjustable from 1 hour to 10 years)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Short lifetimes limit the damage if a token is stolen; the refresh token avoids making users log in every hour.</p>
+<p><strong>What a JWT looks like</strong></p>
+<p>On the wire, a token is one long string like <code>eyJraWQi...</code> <code>.eyJzdWIi...</code> <code>.Kx9f...</code>, three parts joined by dots:</p>
+<ol>
+<li><strong>Header</strong>: which algorithm signed it, and a key ID (<code>kid</code>) saying which of Cognito's keys was used.</li>
+<li><strong>Payload</strong>: the claims. This part is only encoded, <strong>not encrypted</strong>, so anyone holding the token can read it. Never put secrets in it.</li>
+<li><strong>Signature</strong>: a seal made with Cognito's private key. Your API checks it using Cognito's public keys, published at a web address ending in <code>/.well-known/jwks.json</code>. If even one character of the payload changes, the check fails.</li>
+</ol>
+<p><strong>A decoded access token payload</strong></p>
+<pre><code class="language-json">{
+  &quot;sub&quot;: &quot;a1b2c3d4-1111-2222-3333-444455556666&quot;,
+  &quot;cognito:groups&quot;: [&quot;analyst&quot;],
+  &quot;iss&quot;: &quot;https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AbC123&quot;,
+  &quot;client_id&quot;: &quot;4abcexampleclientid&quot;,
+  &quot;token_use&quot;: &quot;access&quot;,
+  &quot;scope&quot;: &quot;openid email orders-api/read&quot;,
+  &quot;auth_time&quot;: 1760160000,
+  &quot;iat&quot;: 1760160000,
+  &quot;exp&quot;: 1760163600,
+  &quot;jti&quot;: &quot;5e6f...&quot;,
+  &quot;username&quot;: &quot;Google_1098...&quot;
+}
+</code></pre>
+<p><strong>What each claim means</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Claim</th>
+<th>Plain meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sub</code></td>
+<td>"Subject": the user's permanent unique ID. Use this to identify users in your database, not their email, which can change</td>
+</tr>
+<tr>
+<td><code>iss</code></td>
+<td>"Issuer": which User Pool created the token. Your API should reject tokens from any other issuer</td>
+</tr>
+<tr>
+<td><code>client_id</code></td>
+<td>Which app the token was issued to (access token)</td>
+</tr>
+<tr>
+<td><code>aud</code></td>
+<td>"Audience": the same idea in the ID token, the app it was issued to</td>
+</tr>
+<tr>
+<td><code>token_use</code></td>
+<td>Whether this is an <code>access</code> or <code>id</code> token, so one cannot be passed off as the other</td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td>The permissions granted, separated by spaces (access token only)</td>
+</tr>
+<tr>
+<td><code>cognito:groups</code></td>
+<td>The User Pool groups the user belongs to</td>
+</tr>
+<tr>
+<td><code>exp</code> / <code>iat</code> / <code>auth_time</code></td>
+<td>When it expires, when it was issued, and when the user actually logged in (in seconds since 1 January 1970)</td>
+</tr>
+<tr>
+<td><code>jti</code></td>
+<td>A unique ID for this particular token, useful for cancelling it</td>
+</tr>
+<tr>
+<td><code>email</code>, <code>name</code>, <code>custom:...</code></td>
+<td>Details about the user, found in the ID token</td>
+</tr>
+<tr>
+<td><code>identities</code></td>
+<td>In the ID token: which outside provider, such as Google, the user came through</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Scopes: permissions with names</strong></p>
+<p>A scope is a label for something the app is allowed to do. The app asks for scopes when it starts the login; Cognito grants only those that are both requested and allowed on that app client.</p>
+<ul>
+<li><strong>Standard OIDC scopes</strong>: <code>openid</code> (needed to get an ID token at all), <code>email</code>, <code>phone</code>, <code>profile</code> (each lets the app see that part of the user's details).</li>
+<li><strong>Cognito's own scope</strong>: <code>aws.cognito.signin.user.admin</code> lets the user's app call Cognito to manage their own account, such as changing their phone number.</li>
+<li><strong>Custom scopes for your API</strong>: you define a <strong>resource server</strong> in the User Pool to represent your API, then invent scopes for it, written <code>&lt;api-name&gt;/&lt;permission&gt;</code>, for example <code>orders-api/read</code> and <code>orders-api/write</code>. Your API then checks for the scope it needs before doing the work.</li>
+</ul>
+<p><strong>Claims vs scopes in one line:</strong> claims are facts about the user and the token; scopes are the specific things the token may be used for. A Lambda function hooked into Cognito (the <em>pre token generation</em> trigger) can add or change claims, and with its newer version, scopes, just before the token is issued.</p>
+
+<h2 id="resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</h2>
+<p>A <strong>resource server</strong> is a record in the User Pool that represents <strong>your API</strong>, and <strong>custom scopes</strong> are the named permissions that API understands, such as <code>orders-api/read</code>. Defining them lets Cognito put those permission names into access tokens, so your API can check "may this caller read orders?" without asking Cognito anything.</p>
+<p><strong>Where the name comes from</strong></p>
+<p>OAuth splits the world into roles. The <strong>authorization server</strong> issues tokens; here that is the Cognito User Pool. The <strong>resource server</strong> holds the data and accepts tokens; here that is your API, such as an orders service. Cognito does not host or run your API. A resource server in Cognito is only a <em>description</em> of it: a name, an identifier and a list of scopes.</p>
+<p><strong>What a resource server contains</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifier</td>
+<td>A unique ID for the API. Often a URL, but any string works; it becomes the first half of every scope name</td>
+<td><code>orders-api</code> or <code>https://api.example.com/orders</code></td>
+</tr>
+<tr>
+<td>Name</td>
+<td>A friendly label shown in the console</td>
+<td>Orders API</td>
+</tr>
+<tr>
+<td>Scopes</td>
+<td>Short permission names, each with a description</td>
+<td><code>read</code> ("Read orders"), <code>write</code> ("Create and change orders")</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cognito joins the identifier and the scope name with a slash to form the <strong>full scope string</strong> that appears in tokens and in app client settings: <code>orders-api/read</code>, <code>orders-api/write</code>. With a URL identifier you would get <code>https://api.example.com/orders/read</code>.</p>
+<p>One User Pool can describe several APIs, each with its own resource server: <code>orders-api/read</code>, <code>billing-api/refund</code>, <code>reports-api/export</code>, and so on.</p>
+<p><strong>An analogy</strong></p>
+<p>Think of a hotel. The front desk (the User Pool) programs key cards (access tokens). Each department, such as the gym, the spa or the business lounge, is a resource server. Each department publishes which doors it has (its scopes): <code>spa/pool</code>, <code>spa/sauna</code>. The front desk writes onto your card which doors it may open; each department's door reader checks the card itself, without phoning the front desk.</p>
+<p><strong>How it works, from setup to API call</strong></p>
+<ol>
+<li><strong>Describe your API.</strong> Create a resource server with an identifier and its scopes. Use names that match the actions the API actually distinguishes, such as <code>read</code> and <code>write</code>, or <code>orders.read</code> and <code>orders.refund</code> for finer control.</li>
+<li><strong>Allow scopes per app.</strong> On each app client, tick the scopes that app may ever receive (the <em>allowed OAuth scopes</em>), and turn on the OAuth flows it uses. This is the ceiling: an app cannot get a scope that is not allowed here.</li>
+<li><strong>Make sure the pool has a domain.</strong> Custom scopes are issued by the OAuth endpoints (<code>/oauth2/authorize</code> and <code>/oauth2/token</code>), which live on the User Pool's domain.</li>
+<li><strong>The app asks for scopes.</strong> It lists them in the <code>scope</code> parameter of its login or token request, separated by spaces: <code>scope=openid orders-api/read</code>.</li>
+<li><strong>Cognito filters.</strong> It grants only scopes that are both <strong>requested</strong> and <strong>allowed</strong> for that app client. Anything else is silently dropped, or the request fails if a scope does not exist.</li>
+<li><strong>The scopes land in the access token.</strong> The token's <code>scope</code> claim lists what was granted, for example <code>"scope": "openid orders-api/read"</code>.</li>
+<li><strong>Your API checks the scope.</strong> Before handling <code>GET /orders</code> it confirms the token carries <code>orders-api/read</code>; before <code>POST /orders</code> it requires <code>orders-api/write</code>. API Gateway can do this for you: set <em>authorization scopes</em> on a REST API method that uses a Cognito authorizer, or on an HTTP API route that uses a JWT authorizer.</li>
+</ol>
+<p><strong>Setting it up with the AWS CLI</strong></p>
+<pre><code class="language-bash"># 1. Describe the API and its scopes
+aws cognito-idp create-resource-server \
+  --user-pool-id us-east-1_AbC123 \
+  --identifier orders-api \
+  --name &quot;Orders API&quot; \
+  --scopes ScopeName=read,ScopeDescription=&quot;Read orders&quot; \
+           ScopeName=write,ScopeDescription=&quot;Create and change orders&quot;
+
+# 2. Create an app client for a background service that may only read
+aws cognito-idp create-user-pool-client \
+  --user-pool-id us-east-1_AbC123 \
+  --client-name nightly-report-job \
+  --generate-secret \
+  --allowed-o-auth-flows client_credentials \
+  --allowed-o-auth-scopes &quot;orders-api/read&quot; \
+  --allowed-o-auth-flows-user-pool-client
+</code></pre>
+<p><strong>The service then asks for a token</strong></p>
+<pre><code class="language-bash">curl -X POST &quot;https://my-app.auth.us-east-1.amazoncognito.com/oauth2/token&quot; \
+  -H &quot;Content-Type: application/x-www-form-urlencoded&quot; \
+  -u &quot;&lt;client-id&gt;:&lt;client-secret&gt;&quot; \
+  -d &quot;grant_type=client_credentials&amp;scope=orders-api/read&quot;
+</code></pre>
+<p>The reply contains an <code>access_token</code> whose <code>scope</code> claim is <code>orders-api/read</code>. If this job asked for <code>orders-api/write</code>, Cognito would refuse, because that scope is not allowed on its app client.</p>
+<p><strong>How it differs for people and for apps</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>People (authorization code flow)</th>
+<th>Apps (client credentials flow)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scopes available</td>
+<td>Standard OIDC scopes (<code>openid</code>, <code>email</code>, <code>profile</code>, <code>phone</code>), <code>aws.cognito.signin.user.admin</code>, and custom scopes</td>
+<td>Custom scopes only</td>
+</tr>
+<tr>
+<td>What the app asks for</td>
+<td>Usually a mix, e.g. <code>openid email orders-api/read</code></td>
+<td>Only custom scopes, e.g. <code>orders-api/read</code></td>
+</tr>
+<tr>
+<td>If no scope is requested</td>
+<td>Cognito grants all scopes allowed on the app client</td>
+<td>Cognito grants all custom scopes allowed on the app client</td>
+</tr>
+<tr>
+<td>Who decides per caller</td>
+<td>The app client's allowed list, plus groups or a Lambda trigger for per-user rules (see below)</td>
+<td>The app client's allowed list; each service gets its own app client</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Things that surprise people</strong></p>
+<ul>
+<li><strong>Scopes are per app, not per user.</strong> Every user who signs in through an app client can receive the same allowed scopes. Cognito does not, by itself, give <code>orders-api/write</code> to Alice but not to Bob. For per-user differences, use <strong>groups</strong> (the <code>cognito:groups</code> claim) checked in your API, or a <strong>pre token generation</strong> Lambda trigger that adds or removes scopes per user (this needs the Essentials or Plus tier).</li>
+<li><strong>API-based sign-in does not include custom scopes.</strong> If your app signs users in through the SDK's sign-in calls (for example <code>InitiateAuth</code>) rather than the OAuth endpoints, the access token carries only <code>aws.cognito.signin.user.admin</code>. To get custom scopes, sign in through managed login or the <code>/oauth2/authorize</code> endpoint, or add them with the pre token generation trigger.</li>
+<li><strong>Scopes are labels, not enforcement.</strong> Cognito only writes them into the token. If your API or API Gateway does not check them, they protect nothing.</li>
+<li><strong>Updating an app client replaces its settings.</strong> The <code>update-user-pool-client</code> command resets any setting you leave out to its default, so include the full list of scopes, flows and callback URLs every time you update.</li>
+<li><strong>Removing a scope does not cancel tokens already issued.</strong> Existing access tokens keep their old scopes until they expire.</li>
+</ul>
+<p><strong>Choosing good scopes</strong></p>
+<ul>
+<li>Name scopes after <strong>what the API does</strong>, such as <code>orders-api/read</code> and <code>orders-api/refund</code>, not after who uses them (avoid <code>orders-api/admin-team</code>).</li>
+<li>Start coarse (<code>read</code> and <code>write</code>) and split later only where you truly need different access.</li>
+<li>Give each app client <strong>only</strong> the scopes it uses. A reporting job never needs <code>write</code>.</li>
+<li>Keep one resource server per API, so each API team owns its own scope list.</li>
+</ul>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="identity-providers.html"><span class="dir">&larr; Previous</span><span class="t">Google, Facebook and other identity providers</span></a><a class="next" href="access-control.html"><span class="dir">Next &rarr;</span><span class="t">Access control and IAM roles</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>

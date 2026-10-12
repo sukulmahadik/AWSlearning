@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Managed login vs your own screens, Lambda triggers, and choosing an API Gateway authorizer.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Building the login experience · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 2 · When you build</span></div>
+    <div class="eyebrow">Chapter 9 of 12 · about 5 minutes</div>
+    <h1>Building the login experience</h1>
+    <p class="dek">Managed login vs your own screens, Lambda triggers, and choosing an API Gateway authorizer.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
+        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
+        <li class="current"><a href="building-login.html"><span class="num">09</span>Building the login experience</a><ul><li><a href="#cognito-s-login-page-vs-building-your-own-screens">Cognito's login page vs building your own screens</a></li><li><a href="#lambda-triggers-customizing-each-step">Lambda triggers: customizing each step</a></li><li><a href="#choosing-an-api-gateway-authorizer">Choosing an API Gateway authorizer</a></li></ul></li>
+        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="cognito-s-login-page-vs-building-your-own-screens">Cognito's login page vs building your own screens</h2>
+<p>You can send users to a login page that Cognito hosts for you (<strong>managed login</strong>, formerly called the <em>hosted UI</em>), or build your own sign-in screens that talk to Cognito through code. Most teams should start with managed login and switch only if they need full control of the look and flow.</p>
+<p><strong>Option 1: Managed login (Cognito's page)</strong></p>
+<ul>
+<li>Your app redirects the browser to Cognito's address, as described in the callback section.</li>
+<li>Sign-up, sign-in, MFA, "forgot password" and the "Sign in with Google" buttons all come ready-made.</li>
+<li>You can apply your logo, colours and layout with Cognito's branding editor.</li>
+<li>Uses the standard OAuth flow, so it works with callback URLs, scopes and every federated provider out of the box.</li>
+</ul>
+<p><strong>Option 2: Your own screens (custom UI)</strong></p>
+<ul>
+<li>Your app shows its own form and calls Cognito's sign-in API directly, usually through the AWS SDK or the <strong>Amplify</strong> library.</li>
+<li>The password is not sent as plain text: the default method, <strong>SRP</strong> (Secure Remote Password), proves the user knows the password without sending it.</li>
+<li>Newer "choice-based" sign-in also supports <strong>passwordless</strong> options such as passkeys or one-time codes by email or SMS (on the paid feature plans).</li>
+<li>"Sign in with Google" still needs a browser trip: your button sends the user to Cognito's <code>/oauth2/authorize</code> address with the provider named, because Google's password must be typed on Google's page.</li>
+</ul>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Managed login</th>
+<th>Your own screens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Low</td>
+<td>Higher: you build every screen and error message</td>
+</tr>
+<tr>
+<td>Look and feel</td>
+<td>Branding options within Cognito's layout</td>
+<td>Anything you want</td>
+</tr>
+<tr>
+<td>Federation (Google, SAML)</td>
+<td>Built in</td>
+<td>Still redirects through Cognito for those buttons</td>
+</tr>
+<tr>
+<td>Security work</td>
+<td>Mostly handled by AWS</td>
+<td>You must handle errors, lockouts and messages carefully</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Most apps, internal tools, prototypes</td>
+<td>Consumer apps where the login must match the brand exactly</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2 id="lambda-triggers-customizing-each-step">Lambda triggers: customizing each step</h2>
+<p>Lambda triggers let you run your own small piece of code at fixed moments during sign-up and sign-in. They are the main way to bend Cognito to your app's rules without building login yourself.</p>
+<p>A <strong>Lambda function</strong> is a snippet of code that AWS runs on demand. You attach one to a named moment in the User Pool; Cognito calls it, passes in details about the user, and acts on what your code returns.</p>
+<p><strong>The most useful triggers</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>When it runs</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pre sign-up</td>
+<td>Before a new account is created</td>
+<td>Allow only certain email domains; auto-confirm trusted users; link a Google sign-in to an existing account</td>
+</tr>
+<tr>
+<td>Post confirmation</td>
+<td>After a user verifies their email or phone</td>
+<td>Create the user's row in your own database; send a welcome email</td>
+</tr>
+<tr>
+<td>Pre authentication</td>
+<td>Before each sign-in is checked</td>
+<td>Block users your own system has suspended</td>
+</tr>
+<tr>
+<td>Post authentication</td>
+<td>After a successful sign-in</td>
+<td>Record login history for auditing</td>
+</tr>
+<tr>
+<td>Pre token generation</td>
+<td>Just before tokens are issued</td>
+<td>Add claims such as <code>tenant_id</code> or a role from your database; on the newer version, add or remove scopes in the access token</td>
+</tr>
+<tr>
+<td>User migration</td>
+<td>When a user who doesn't exist yet tries to sign in</td>
+<td>Check their password against your old system and move them into Cognito (see "Moving existing users")</td>
+</tr>
+<tr>
+<td>Custom message</td>
+<td>Before Cognito sends an email or SMS</td>
+<td>Rewrite verification and reset messages in your own words and language</td>
+</tr>
+<tr>
+<td>Custom auth challenge (define / create / verify)</td>
+<td>During a custom sign-in flow</td>
+<td>Build your own login steps, such as a magic link or a CAPTCHA</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Things to know</strong></p>
+<ul>
+<li>Triggers run <strong>during</strong> the user's login, so they must be fast. Cognito waits only about 5 seconds for a reply, and a slow or failing trigger blocks the sign-in.</li>
+<li>A trigger failure shows up to the user as a login error, so log errors clearly.</li>
+<li>Customizing the <strong>access token</strong> with the pre-token-generation trigger requires one of Cognito's paid feature plans (see "Pricing tiers and limits").</li>
+</ul>
+
+<h2 id="choosing-an-api-gateway-authorizer">Choosing an API Gateway authorizer</h2>
+<p>API Gateway is AWS's front door for APIs, and an <strong>authorizer</strong> is the guard at that door: it checks each request before your code runs. For Cognito tokens, pick the built-in <strong>Cognito / JWT authorizer</strong>; use a <strong>Lambda authorizer</strong> only when you need custom rules; use <strong>IAM authorization</strong> when callers hold AWS credentials from an Identity Pool.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Authorizer</th>
+<th>What the caller sends</th>
+<th>What it checks</th>
+<th>Choose it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cognito user pool authorizer (REST APIs)</td>
+<td>A Cognito token in the <code>Authorization</code> header</td>
+<td>Signature, expiry, issuer; and scopes per endpoint if you configure them</td>
+<td>You use Cognito and scopes or simple "is logged in" checks are enough</td>
+</tr>
+<tr>
+<td>JWT authorizer (HTTP APIs)</td>
+<td>Any standard JWT, including Cognito's</td>
+<td>Signature, expiry, issuer, audience/client ID, and required scopes per route</td>
+<td>Same as above, on the cheaper, simpler HTTP API type</td>
+</tr>
+<tr>
+<td>Lambda authorizer</td>
+<td>Any token or header</td>
+<td>Whatever your code decides, e.g. group membership, tenant, a block list</td>
+<td>You need rules beyond scopes, or a non-standard token</td>
+</tr>
+<tr>
+<td>IAM authorization</td>
+<td>A request signed with AWS credentials (SigV4)</td>
+<td>That the credentials' IAM role is allowed to call this endpoint</td>
+<td>Callers got AWS credentials from an Identity Pool, or are other AWS services</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Points to watch</strong></p>
+<ul>
+<li><strong>Send access tokens, not ID tokens.</strong> The REST API's Cognito authorizer will accept an ID token if no scopes are configured on the endpoint, which is a common accident. Configure scopes so only access tokens pass.</li>
+<li>The built-in authorizers check <strong>who</strong> and <strong>which scopes</strong>. Finer rules, such as "users may only see their own orders", still belong in your code.</li>
+<li>Lambda authorizers can <strong>cache</strong> their decision for a few minutes to save cost, but that also delays the effect of a revoked user.</li>
+</ul>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="token-safety.html"><span class="dir">&larr; Previous</span><span class="t">Logging out, storing and checking tokens</span></a><a class="next" href="users.html"><span class="dir">Next &rarr;</span><span class="t">Moving and linking users</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>
