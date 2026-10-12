@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Client IDs and secrets, what an app client controls, and how PKCE protects apps that can&#x27;t keep a secret.">
+<meta name="description" content="Client IDs and secrets, the four app client types (web app, SPA, mobile, machine-to-machine), and how PKCE protects apps that can&#x27;t keep a secret.">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Clients, secrets and PKCE · Cognito, Explained</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -148,9 +148,9 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 3 of 12 · about 7 minutes</div>
+    <div class="eyebrow">Chapter 3 of 12 · about 12 minutes</div>
     <h1>Clients, secrets and PKCE</h1>
-    <p class="dek">Client IDs and secrets, what an app client controls, and how PKCE protects apps that can't keep a secret.</p>
+    <p class="dek">Client IDs and secrets, the four app client types (web app, SPA, mobile, machine-to-machine), and how PKCE protects apps that can't keep a secret.</p>
   </header>
 
   <nav class="toc" aria-label="Chapters">
@@ -161,7 +161,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
         <li class="part">Part 1 · How it fits</li>
         <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
         <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
-        <li class="current"><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a><ul><li><a href="#client-ids-and-client-secrets">Client IDs and client secrets</a></li><li><a href="#pkce-protecting-logins-for-apps-that-can-t-keep-a-secret">PKCE: protecting logins for apps that can't keep a secret</a></li></ul></li>
+        <li class="current"><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a><ul><li><a href="#client-ids-and-client-secrets">Client IDs and client secrets</a></li><li><a href="#the-four-types-of-app-clients">The four types of app clients</a></li><li><a href="#pkce-protecting-logins-for-apps-that-can-t-keep-a-secret">PKCE: protecting logins for apps that can't keep a secret</a></li></ul></li>
         <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
         <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
         <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
@@ -262,6 +262,128 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </tr>
 </tbody>
 </table></div>
+
+<h2 id="the-four-types-of-app-clients">The four types of app clients</h2>
+<p>When you create an app client in the Cognito console, it first asks <strong>what kind of application</strong> you are building: a traditional web application, a single-page application (SPA), a mobile app, or a machine-to-machine application. The choice decides the client's starting settings, above all <strong>whether it gets a client secret</strong> and <strong>which login flow it uses</strong>.</p>
+<p>The deciding question for every type is: <strong>can this application keep a secret?</strong> Code that runs on your own server can. Code that is downloaded to a browser or installed on a phone cannot, because anyone can open it up and read it.</p>
+<h3>At a glance</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th></th>
+<th>Traditional web app</th>
+<th>Single-page app (SPA)</th>
+<th>Mobile app</th>
+<th>Machine-to-machine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Where the code runs</td>
+<td>On your web server</td>
+<td>In the user's browser</td>
+<td>On the user's phone</td>
+<td>On your server, with no user</td>
+</tr>
+<tr>
+<td>Who signs in</td>
+<td>A person</td>
+<td>A person</td>
+<td>A person</td>
+<td>The application itself</td>
+</tr>
+<tr>
+<td>Client secret</td>
+<td>Yes (confidential client)</td>
+<td>No (public client)</td>
+<td>No (public client)</td>
+<td>Yes (confidential client)</td>
+</tr>
+<tr>
+<td>Login flow</td>
+<td>Authorization code (+ PKCE recommended)</td>
+<td>Authorization code + PKCE</td>
+<td>Authorization code + PKCE</td>
+<td>Client credentials</td>
+</tr>
+<tr>
+<td>Uses a browser and callback URL</td>
+<td>Yes, a server route such as <code>/callback</code></td>
+<td>Yes, a page in the app</td>
+<td>Yes, an app link such as <code>myapp://callback</code></td>
+<td>No</td>
+</tr>
+<tr>
+<td>Tokens received</td>
+<td>ID, access, refresh</td>
+<td>ID, access, refresh</td>
+<td>ID, access, refresh</td>
+<td>Access token only</td>
+</tr>
+<tr>
+<td>Where tokens live</td>
+<td>On the server; the browser gets a session cookie</td>
+<td>In the browser (memory)</td>
+<td>The phone's secure store (Keychain, Keystore)</td>
+<td>In the service's memory</td>
+</tr>
+<tr>
+<td>Typical scopes</td>
+<td><code>openid email profile</code> + API scopes</td>
+<td><code>openid email profile</code> + API scopes</td>
+<td><code>openid email profile</code> + API scopes</td>
+<td>Custom API scopes only</td>
+</tr>
+<tr>
+<td>Examples</td>
+<td>Django, Spring, Rails, Express or ASP.NET sites</td>
+<td>React, Angular or Vue apps on S3 and CloudFront</td>
+<td>iOS and Android apps, Flutter or React Native</td>
+<td>Nightly jobs, data pipelines, one API calling another</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Traditional web application</h3>
+<p>A website whose pages are produced by <strong>your server</strong>: the browser shows HTML, but the logic, and the secret, live on the server.</p>
+<ul>
+<li><strong>How login works:</strong> the server redirects the browser to Cognito; Cognito sends the browser back to a route on your server with a code; the <strong>server</strong> swaps the code for tokens using its client secret (and PKCE as an extra guard).</li>
+<li><strong>Where tokens go:</strong> they stay on the server. The browser receives only a session cookie, which is the safest arrangement for a website.</li>
+<li><strong>What to configure:</strong> generate a client secret; allow the authorization code grant; register callback and sign-out URLs on your domain (<code>https://app.example.com/callback</code>).</li>
+<li><strong>Examples:</strong> an internal admin portal built with Django, a customer account site in Spring Boot or ASP.NET, an Express app with server-rendered pages.</li>
+</ul>
+<h3>Single-page application (SPA)</h3>
+<p>A web app that is downloaded <strong>once</strong> as JavaScript and then runs entirely in the browser, calling APIs directly. There is no server of your own to hold a secret.</p>
+<ul>
+<li><strong>How login works:</strong> the app redirects to Cognito with a PKCE challenge; Cognito returns a code to a page in the app; the <strong>browser</strong> swaps the code for tokens using the PKCE verifier.</li>
+<li><strong>Where tokens go:</strong> in the browser, ideally in memory rather than <code>localStorage</code>. For higher security, add a small backend-for-frontend that holds the tokens instead.</li>
+<li><strong>What to configure:</strong> no client secret; authorization code grant with PKCE; callback URLs pointing at the app (<code>https://app.example.com/</code> or <code>http://localhost:3000/</code> while developing). Never enable the old implicit grant.</li>
+<li><strong>Examples:</strong> a React analytics dashboard hosted on S3 and CloudFront, an Angular back-office tool, a Vue app built with AWS Amplify.</li>
+</ul>
+<h3>Mobile app</h3>
+<p>An app <strong>installed on a phone or tablet</strong>. The app package can be downloaded and unpacked by anyone, so it cannot contain a secret.</p>
+<ul>
+<li><strong>How login works:</strong> the app opens the Cognito login page in the system browser (not an embedded web view), with a PKCE challenge. Cognito returns the code to the app through a registered app link; the app swaps it using the PKCE verifier.</li>
+<li><strong>Where tokens go:</strong> the operating system's secure store: Keychain on iOS, Keystore on Android.</li>
+<li><strong>What to configure:</strong> no client secret; authorization code grant with PKCE; a callback URL that opens your app, such as a custom scheme (<code>myapp://callback</code>) or a universal or app link on your domain.</li>
+<li><strong>Why the system browser matters:</strong> it shares the user's existing Google or company login, and your app cannot read what the user types there. Google also blocks sign-in from embedded web views.</li>
+<li><strong>Examples:</strong> a banking or fitness app with "Sign in with Google", apps built with Swift, Kotlin, Flutter or React Native.</li>
+</ul>
+<h3>Machine-to-machine application</h3>
+<p>A program that calls an API <strong>as itself</strong>, with no person signing in.</p>
+<ul>
+<li><strong>How login works:</strong> one direct request to <code>/oauth2/token</code> with <code>grant_type=client_credentials</code>, the client ID and secret, and the scopes it wants. No browser, no callback, no code.</li>
+<li><strong>What it gets:</strong> an access token only, whose <code>scope</code> claim lists the custom scopes granted. There is no ID token (there is no user to describe) and no refresh token (the program simply asks again).</li>
+<li><strong>What to configure:</strong> generate a client secret; allow only the client credentials grant; allow only the custom scopes the program needs. This requires at least one <strong>resource server</strong> with custom scopes, and a User Pool domain.</li>
+<li><strong>Where the secret goes:</strong> AWS Secrets Manager or a similar store, never in code or git.</li>
+<li><strong>Examples:</strong> a nightly reporting job pulling order totals, an Airflow pipeline calling an internal data API, a microservice calling another microservice.</li>
+</ul>
+<h3>Things to know about app client types</h3>
+<ul>
+<li><strong>The type is a starting template.</strong> Cognito applies sensible defaults for the type you pick, and you can adjust flows, scopes and URLs later.</li>
+<li><strong>Secret or no secret is decided at creation.</strong> Whether an app client is confidential or public is set when you create it. To switch, create a new app client.</li>
+<li><strong>One app client per application.</strong> A website and its mobile app should be separate app clients, even if they call the same API, so each gets settings that suit it and can be switched off on its own.</li>
+<li><strong>One User Pool can hold all four.</strong> The same pool can serve your website, your SPA, your mobile app and your background jobs, each through its own app client.</li>
+</ul>
 
 <h2 id="pkce-protecting-logins-for-apps-that-can-t-keep-a-secret">PKCE: protecting logins for apps that can't keep a secret</h2>
 <p><strong>PKCE</strong> (Proof Key for Code Exchange, pronounced "pixy") is a one-time secret that an app invents for <strong>each</strong> login, so that only the app that started a login can finish it. It does the job a client secret would do, for apps that cannot safely hold a client secret.</p>

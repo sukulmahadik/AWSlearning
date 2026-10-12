@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="What is inside ID, access and refresh tokens, and how resource servers and custom scopes work.">
+<meta name="description" content="What is inside ID, access and refresh tokens, how resource servers and custom scopes work, and where every claim comes from.">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Tokens, scopes and resource servers · Cognito, Explained</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -148,9 +148,9 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 5 of 12 · about 9 minutes</div>
+    <div class="eyebrow">Chapter 5 of 12 · about 15 minutes</div>
     <h1>Tokens, scopes and resource servers</h1>
-    <p class="dek">What is inside ID, access and refresh tokens, and how resource servers and custom scopes work.</p>
+    <p class="dek">What is inside ID, access and refresh tokens, how resource servers and custom scopes work, and where every claim comes from.</p>
   </header>
 
   <nav class="toc" aria-label="Chapters">
@@ -163,7 +163,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
         <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
         <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
         <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
-        <li class="current"><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a><ul><li><a href="#what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</a></li><li><a href="#resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</a></li></ul></li>
+        <li class="current"><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a><ul><li><a href="#what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</a></li><li><a href="#resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</a></li><li><a href="#defining-claims-and-scopes-in-depth">Defining claims and scopes in depth</a></li></ul></li>
         <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
         <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
         <li class="part">Part 2 · When you build</li>
@@ -416,6 +416,206 @@ aws cognito-idp create-user-pool-client \
 <li>Give each app client <strong>only</strong> the scopes it uses. A reporting job never needs <code>write</code>.</li>
 <li>Keep one resource server per API, so each API team owns its own scope list.</li>
 </ul>
+
+<h2 id="defining-claims-and-scopes-in-depth">Defining claims and scopes in depth</h2>
+<p>Every claim in a Cognito token comes from one of <strong>four sources</strong>: Cognito's own bookkeeping, the user's <strong>attributes</strong>, the user's <strong>groups</strong>, or a <strong>Lambda trigger</strong> you write. Scopes come from <strong>resource servers</strong> you define, plus a few standard ones. You never type claims into a token directly; you define these sources, and Cognito assembles the token from them at sign-in.</p>
+<h3>Where each claim comes from</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>How you define it</th>
+<th>Claims it produces</th>
+<th>Which token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cognito itself</td>
+<td>Nothing to define; always added</td>
+<td><code>sub</code>, <code>iss</code>, <code>exp</code>, <code>iat</code>, <code>auth_time</code>, <code>jti</code>, <code>origin_jti</code>, <code>token_use</code>, <code>client_id</code> (access) or <code>aud</code> (ID), <code>username</code> (access) or <code>cognito:username</code> (ID)</td>
+<td>Both</td>
+</tr>
+<tr>
+<td>Standard attributes</td>
+<td>Choose which ones the pool uses and which are required when you create the pool</td>
+<td><code>email</code>, <code>email_verified</code>, <code>phone_number</code>, <code>name</code>, <code>given_name</code>, <code>family_name</code>, <code>picture</code>, <code>locale</code> and other standard OpenID Connect attributes</td>
+<td>ID token</td>
+</tr>
+<tr>
+<td>Custom attributes</td>
+<td>Add them to the pool, e.g. <code>tenant_id</code>, <code>plan</code></td>
+<td><code>custom:tenant_id</code>, <code>custom:plan</code></td>
+<td>ID token</td>
+</tr>
+<tr>
+<td>Groups</td>
+<td>Create groups and add users to them; optionally link an IAM role and precedence</td>
+<td><code>cognito:groups</code>, and with roles <code>cognito:roles</code> and <code>cognito:preferred_role</code></td>
+<td>Both</td>
+</tr>
+<tr>
+<td>Federation</td>
+<td>Attribute mapping on each identity provider</td>
+<td>Mapped attributes such as <code>email</code>, plus <code>identities</code></td>
+<td>ID token</td>
+</tr>
+<tr>
+<td>Pre token generation trigger</td>
+<td>A Lambda function that edits claims just before tokens are issued</td>
+<td>Anything you add, change or remove (within limits)</td>
+<td>ID token; access token on newer trigger versions</td>
+</tr>
+</tbody>
+</table></div>
+<h3>User attributes: the main source of identity claims</h3>
+<ul>
+<li><strong>Standard attributes</strong> are the OpenID Connect set: <code>email</code>, <code>phone_number</code>, <code>name</code>, <code>given_name</code>, <code>family_name</code>, <code>middle_name</code>, <code>nickname</code>, <code>preferred_username</code>, <code>picture</code>, <code>profile</code>, <code>website</code>, <code>gender</code>, <code>birthdate</code>, <code>zoneinfo</code>, <code>locale</code>, <code>address</code> and <code>updated_at</code>.</li>
+<li><strong>Custom attributes</strong> are your own, always prefixed <code>custom:</code>. Each has a type (string or number), optional length or value limits, and a <strong>mutable</strong> flag that says whether it can change after sign-up.</li>
+<li><strong>Plan custom attributes carefully.</strong> You can add custom attributes later, but you cannot rename or remove them, and a required attribute cannot be added after the pool exists.</li>
+<li><strong>Values come from</strong> sign-up forms, your backend (<code>AdminUpdateUserAttributes</code>), attribute mapping from Google or SAML, or Lambda triggers.</li>
+</ul>
+<h3>Who can see and change which attributes</h3>
+<p>Each <strong>app client</strong> has its own read and write permissions for every attribute:</p>
+<ul>
+<li><strong>Read permission</strong> decides which attributes appear in that app client's ID token and <code>/oauth2/userInfo</code> response.</li>
+<li><strong>Write permission</strong> decides which attributes that app may change on the user's behalf.</li>
+<li>Make sensitive attributes, such as <code>custom:tenant_id</code> or <code>custom:plan</code>, <strong>readable but not writable</strong> by apps, so users cannot promote themselves. Set them only from your backend or a trigger.</li>
+</ul>
+<h3>How the standard scopes relate to claims</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>What it unlocks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>openid</code></td>
+<td>Required to receive an ID token at all. The ID token then carries every attribute the app client is allowed to read</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td><code>email</code> and <code>email_verified</code> from the <code>/oauth2/userInfo</code> endpoint</td>
+</tr>
+<tr>
+<td><code>phone</code></td>
+<td><code>phone_number</code> and <code>phone_number_verified</code> from <code>/oauth2/userInfo</code></td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td>All attributes the app client can read, from <code>/oauth2/userInfo</code></td>
+</tr>
+<tr>
+<td><code>aws.cognito.signin.user.admin</code></td>
+<td>Lets the access token call Cognito's own user APIs, such as changing the user's attributes or password</td>
+</tr>
+<tr>
+<td><code>&lt;resource-server&gt;/&lt;scope&gt;</code></td>
+<td>A custom permission for your API, carried in the access token's <code>scope</code> claim</td>
+</tr>
+</tbody>
+</table></div>
+<p>In short: <strong>attributes and app client read permissions decide what is in the ID token; scopes decide what the access token may be used for.</strong></p>
+<h3>Access tokens carry permissions, not profile data</h3>
+<p>By default the access token holds no email, name or custom attributes; just Cognito's own claims, <code>cognito:groups</code> and <code>scope</code>. That is deliberate: the access token is sent to APIs on every request, so it stays small and avoids leaking personal data. If an API needs, say, <code>tenant_id</code>, either look it up from <code>sub</code>, or add it to the access token with the pre token generation trigger.</p>
+<h3>Customizing claims with the pre token generation trigger</h3>
+<p>The trigger receives the claims Cognito is about to issue, and returns changes:</p>
+<ul>
+<li><strong>Add or override claims</strong>, such as <code>tenant_id</code> read from your database, or a <code>role</code> based on the user's plan.</li>
+<li><strong>Suppress claims</strong> you don't want exposed.</li>
+<li><strong>Override group membership</strong> shown in <code>cognito:groups</code>.</li>
+<li><strong>Add or remove scopes</strong> in the access token, for example granting <code>orders-api/write</code> only to users in the <code>editors</code> group. This is the way to make scopes differ <strong>per user</strong>.</li>
+</ul>
+<p>The original trigger version edits only the ID token. The newer versions also edit the access token, and the latest covers machine-to-machine tokens too; these need the Essentials or Plus tier. Some claims, such as <code>sub</code>, <code>iss</code> and <code>exp</code>, can never be changed.</p>
+<pre><code class="language-python"># Pre token generation trigger (newer event version): add a tenant claim and a scope
+def lambda_handler(event, context):
+    attrs = event[&quot;request&quot;][&quot;userAttributes&quot;]
+    groups = event[&quot;request&quot;][&quot;groupConfiguration&quot;][&quot;groupsToOverride&quot;]
+    scopes_to_add = [&quot;orders-api/write&quot;] if &quot;editors&quot; in groups else []
+    event[&quot;response&quot;][&quot;claimsAndScopeOverrideDetails&quot;] = {
+        &quot;idTokenGeneration&quot;: {
+            &quot;claimsToAddOrOverride&quot;: {&quot;tenant_id&quot;: attrs.get(&quot;custom:tenant_id&quot;, &quot;&quot;)}
+        },
+        &quot;accessTokenGeneration&quot;: {
+            &quot;claimsToAddOrOverride&quot;: {&quot;tenant_id&quot;: attrs.get(&quot;custom:tenant_id&quot;, &quot;&quot;)},
+            &quot;scopesToAdd&quot;: scopes_to_add,
+        },
+    }
+    return event
+</code></pre>
+<h3>Resource servers in more depth</h3>
+<p><strong>A resource server's identifier works like the API's address on every scope.</strong> Cognito access tokens have <strong>no audience claim</strong> naming the API they are for. Instead, the scope prefix tells each API which permissions belong to it: the orders API looks only for <code>orders-api/...</code> scopes and ignores <code>billing-api/...</code> ones. Choose identifiers that are unique and stable; changing one later changes every scope name.</p>
+<p><strong>Mapping scopes to API routes.</strong> A clear table of route-to-scope rules keeps an API predictable:</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>API route</th>
+<th>Required scope</th>
+<th>Who typically gets it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /orders</code>, <code>GET /orders/{id}</code></td>
+<td><code>orders-api/read</code></td>
+<td>Customer website, mobile app, reporting job</td>
+</tr>
+<tr>
+<td><code>POST /orders</code>, <code>PATCH /orders/{id}</code></td>
+<td><code>orders-api/write</code></td>
+<td>Customer website, mobile app</td>
+</tr>
+<tr>
+<td><code>POST /orders/{id}/refund</code></td>
+<td><code>orders-api/refund</code></td>
+<td>Internal support tool only</td>
+</tr>
+<tr>
+<td><code>GET /orders/export</code></td>
+<td><code>orders-api/export</code></td>
+<td>Nightly data pipeline only</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Defining it as infrastructure code</strong> (CloudFormation) keeps the scope list reviewed and versioned:</p>
+<pre><code class="language-yaml">OrdersApiResourceServer:
+  Type: AWS::Cognito::UserPoolResourceServer
+  Properties:
+    UserPoolId: !Ref UserPool
+    Identifier: orders-api
+    Name: Orders API
+    Scopes:
+      - ScopeName: read
+        ScopeDescription: Read orders
+      - ScopeName: write
+        ScopeDescription: Create and change orders
+      - ScopeName: refund
+        ScopeDescription: Issue refunds
+      - ScopeName: export
+        ScopeDescription: Bulk export of orders
+
+ReportingJobClient:
+  Type: AWS::Cognito::UserPoolClient
+  DependsOn: OrdersApiResourceServer
+  Properties:
+    UserPoolId: !Ref UserPool
+    ClientName: nightly-report-job
+    GenerateSecret: true
+    AllowedOAuthFlowsUserPoolClient: true
+    AllowedOAuthFlows: [client_credentials]
+    AllowedOAuthScopes: [orders-api/read, orders-api/export]
+</code></pre>
+<p>The <code>DependsOn</code> matters: an app client can only list scopes that already exist.</p>
+<p><strong>Changing scopes safely</strong></p>
+<ul>
+<li><strong>Adding a scope</strong> is safe. Existing tokens are unaffected; apps get it once it is allowed on their app client and they request it.</li>
+<li><strong>Updating a resource server replaces its whole scope list</strong>, so always send the complete list, not just the new scope.</li>
+<li><strong>Removing a scope</strong>: first remove it from every app client and stop checking it in the API, then delete it. Tokens already issued keep the old scope until they expire.</li>
+<li><strong>Quotas</strong> limit how many resource servers a pool can have and how many scopes each can hold (at the time of writing, 25 resource servers per pool and 100 custom scopes per resource server). Check the Cognito quotas page before designing hundreds of fine-grained scopes.</li>
+</ul>
+<p><strong>Claims and scopes together, in one sentence:</strong> define <em>who the user is</em> with attributes and groups (claims, mostly in the ID token), define <em>what a caller may do</em> with resource servers and scopes (in the access token), and use the pre token generation trigger when you need to bridge the two per user.</p>
 
     <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="identity-providers.html"><span class="dir">&larr; Previous</span><span class="t">Google, Facebook and other identity providers</span></a><a class="next" href="access-control.html"><span class="dir">Next &rarr;</span><span class="t">Access control and IAM roles</span></a></nav>
 
