@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="The agent&#x27;s own identity, the agent identity directory, and the token that ties an agent to a user.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Workload identities and access tokens · AgentCore Identity, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+<style>
+
+.chain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.chain .link { --c: var(--accent); background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--c); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.chain .l1 { --c: var(--seg-header); }
+.chain .l2 { --c: var(--seg-payload); }
+.chain .l3 { --c: var(--seg-sig); }
+.chain .k { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+.chain .t { font-family: var(--display); font-weight: 700; font-size: 1.08rem; color: var(--fg); }
+.chain .v { font-size: 0.95rem; color: var(--muted); line-height: 1.45; }
+.chain code { justify-self: start; margin-top: 4px; font-size: 0.8rem; }
+.chain .arrow { align-self: center; font-family: var(--mono); font-size: 1.3rem; color: var(--muted); }
+.chain-key { margin: 10px 0 0; font-family: var(--display); font-size: 0.85rem; color: var(--muted); }
+@media (max-width: 760px) {
+  .chain { grid-template-columns: minmax(0, 1fr); }
+  .chain .arrow { justify-self: center; transform: rotate(90deg); }
+}
+.sources ul { margin: 0 0 1em; padding-left: 1.2em; }
+.sources li { margin-bottom: 0.25em; }
+
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 4 of 10 · about 4 minutes</div>
+    <h1>Workload identities and access tokens</h1>
+    <p class="dek">The agent's own identity, the agent identity directory, and the token that ties an agent to a user.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
+        <li><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
+        <li class="current"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a><ul><li><a href="#workload-identities-the-agent-s-own-identity">Workload identities: the agent's own identity</a></li><li><a href="#workload-access-tokens-tying-the-agent-to-a-user">Workload access tokens: tying the agent to a user</a></li></ul></li>
+        <li><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
+        <li><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
+        <li><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
+        <li><a href="production.html"><span class="num">09</span>From laptop to production</a></li>
+        <li><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="workload-identities-the-agent-s-own-identity">Workload identities: the agent's own identity</h2>
+<p>A <strong>workload identity</strong> is AgentCore's identity record for one agent (or gateway). It lets the agent prove <em>which agent</em> is asking for a credential, separately from <em>which user</em> it is helping. AWS also calls this an <strong>agent identity</strong>: a workload identity with agent-specific attributes (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-terminology.html" target="_blank" rel="noopener">AWS terminology</a>).</p>
+<p><strong>Where workload identities live: the agent identity directory</strong></p>
+<p>All workload identities in an account and Region sit in an <strong>agent identity directory</strong> (today, the one named <code>default</code>). AWS compares it to a Cognito User Pool, but for agents instead of people: one place to list, govern and write policies for every agent identity.</p>
+<p>Each workload identity has:</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>A unique name in the directory</td>
+<td><code>travel-agent</code></td>
+</tr>
+<tr>
+<td>ARN</td>
+<td>Its full AWS resource name, used in IAM policies</td>
+<td><code>arn:aws:bedrock-agentcore:us-east-1:111122223333:workload-identity-directory/default/workload-identity/travel-agent</code></td>
+</tr>
+<tr>
+<td>Allowed OAuth return URLs</td>
+<td>Your app's addresses that AgentCore may send the browser back to after a user grants consent</td>
+<td><code>https://app.example.com/oauth/return</code></td>
+</tr>
+<tr>
+<td>Timestamps</td>
+<td>When it was created and last updated</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because the ARN is a path, an IAM policy can target one agent (<code>.../workload-identity/travel-agent</code>) or every agent in the directory (<code>.../workload-identity/*</code>).</p>
+<p><strong>How workload identities are created</strong></p>
+<ul>
+<li><strong>Automatically</strong> when you create an AgentCore Runtime or Gateway. The runtime's identity is linked to the service, which then fetches tokens on its behalf.</li>
+<li><strong>Manually</strong> with <code>CreateWorkloadIdentity</code>, for an agent you host elsewhere: on Amazon ECS, EKS, Lambda, your own servers, or another cloud. The identity works the same way wherever the agent runs.</li>
+</ul>
+<p><strong>Service-linked identities can't be used directly.</strong> A workload identity created for a Runtime or Gateway is managed by that service. If your own code tries to fetch a token for it directly, AgentCore returns an error saying the identity is linked to a service. Use the token the runtime hands your code instead.</p>
+<p><strong>Permissions.</strong> Agents created on or after 13 October 2025 get their identity permissions through a service-linked role, <code>AWSServiceRoleForBedrockAgentCoreRuntimeIdentity</code>, so you no longer attach those permissions to the execution role yourself. Older agents still need them on their execution role.</p>
+
+<h2 id="workload-access-tokens-tying-the-agent-to-a-user">Workload access tokens: tying the agent to a user</h2>
+<p>A <strong>workload access token</strong> is a short-lived, AWS-signed token that means <strong>"this agent, acting for this user, right now"</strong>. Your agent presents it every time it asks the token vault for a credential, and the vault uses it to decide <strong>whose</strong> tokens to release. AWS's terminology page calls the same idea an <em>agent access token</em>: one token that carries both identities, so downstream decisions can use both.</p>
+<p><strong>Why it exists</strong></p>
+<p>The token vault holds Maya's Google token, Raj's GitHub token and thousands more. When the agent asks "give me the Google token", the vault must know two things: is this really the agent the token was granted to, and which user is the agent working for? The workload access token answers both in one signed package, so the agent never has to (and can't) say "I'm working for Maya" without proof.</p>
+<p><strong>Three ways to get one</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Call</th>
+<th>User identity comes from</th>
+<th>When to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GetWorkloadAccessTokenForJWT</code></td>
+<td>A verified JWT from the user's identity provider. AgentCore checks its signature and expiry, then uses its <code>iss</code> and <code>sub</code> claims</td>
+<td><strong>Production.</strong> Users sign in with Cognito, Okta, Entra ID, Auth0</td>
+</tr>
+<tr>
+<td><code>GetWorkloadAccessTokenForUserId</code></td>
+<td>A user ID string your code passes in. AgentCore does <strong>not</strong> verify it</td>
+<td>Development, quick starts, or when a trusted upstream system has already authenticated the user</td>
+</tr>
+<tr>
+<td><code>GetWorkloadAccessToken</code></td>
+<td>No user at all</td>
+<td>The agent acts only as itself, for machine-to-machine calls</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>In AgentCore Runtime you rarely call these yourself.</strong> With JWT inbound auth, the runtime does it for every request:</p>
+<ol>
+<li>Validates the caller's JWT.</li>
+<li>Takes the user's <code>iss</code> and <code>sub</code>.</li>
+<li>Looks up the agent's workload identity.</li>
+<li>Calls <code>GetWorkloadAccessTokenForJWT</code> with both.</li>
+<li>Passes the result to your code in the <code>WorkloadAccessToken</code> request header, where the AgentCore SDK decorators pick it up automatically.</li>
+</ol>
+<p>With IAM inbound auth plus the <code>X-Amzn-Bedrock-AgentCore-Runtime-User-Id</code> header, the runtime does the same using the user ID path instead.</p>
+<p><strong>Agents hosted elsewhere</strong> call these APIs directly, for example with the SDK's identity client:</p>
+<pre><code class="language-python">from bedrock_agentcore.services.identity import IdentityClient
+
+identity = IdentityClient(&quot;us-east-1&quot;)
+
+# Production: prove who the user is with their verified login token
+workload_token = identity.get_workload_access_token(
+    workload_name=&quot;travel-agent&quot;,
+    user_token=users_jwt,
+)
+
+# Development only: an unverified user ID
+workload_token = identity.get_workload_access_token(
+    workload_name=&quot;travel-agent&quot;,
+    user_id=&quot;cognito+maya-1234&quot;,
+)
+</code></pre>
+<p><strong>Getting user IDs right</strong></p>
+<ul>
+<li>Take user IDs from a trusted, authenticated source, never from text the user typed.</li>
+<li>If you have several identity providers, prefix IDs to avoid collisions, such as <code>cognito+user123</code> and <code>okta+user123</code>.</li>
+<li>If every caller always has a JWT, deny <code>bedrock-agentcore:GetWorkloadAccessTokenForUserId</code> in IAM so the unverified path can't be used at all.</li>
+<li>Watch these calls in AWS CloudTrail for unexpected user IDs.</li>
+</ul>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="inbound.html"><span class="dir">&larr; Previous</span><span class="t">Inbound authentication: who may call your agent</span></a><a class="next" href="token-vault.html"><span class="dir">Next &rarr;</span><span class="t">The token vault, credential providers and API keys</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources</strong></p>
+      <ul>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity.html" target="_blank" rel="noopener">Amazon Bedrock AgentCore Identity</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-terminology.html" target="_blank" rel="noopener">AgentCore Identity terminology</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/key-features-and-benefits.html" target="_blank" rel="noopener">AgentCore Identity key features</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-oauth.html" target="_blank" rel="noopener">Inbound and outbound auth for AgentCore Runtime</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/get-workload-access-token.html" target="_blank" rel="noopener">Get workload access token</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html" target="_blank" rel="noopener">Obtain an OAuth 2.0 access token</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html" target="_blank" rel="noopener">Configure credential providers</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateOauth2CredentialProvider.html" target="_blank" rel="noopener">CreateOauth2CredentialProvider API reference</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-google.html" target="_blank" rel="noopener">Google as an outbound provider</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/oauth2-authorization-url-session-binding.html" target="_blank" rel="noopener">OAuth 2.0 authorization URL session binding</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-consent-portal.html" target="_blank" rel="noopener">Configure a consent portal</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-outbound-auth.html" target="_blank" rel="noopener">AgentCore Gateway outbound authorization</a></li>
+<li><a href="https://aws.amazon.com/bedrock/agentcore/pricing/" target="_blank" rel="noopener">Amazon Bedrock AgentCore pricing</a></li>
+<li><a href="https://github.com/aws/bedrock-agentcore-sdk-python/blob/main/src/bedrock_agentcore/identity/auth.py" target="_blank" rel="noopener">AgentCore Python SDK: identity decorators</a></li>
+</ul>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>
