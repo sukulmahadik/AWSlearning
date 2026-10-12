@@ -128,3 +128,4 @@ CHAPTERS = [
      ["pricing-and-limits", "how-agentcore-identity-relates-to-cognito"]),
     ("glossary", 3, "Glossary", "One-line definitions of every term used in the guide.", ["glossary"]),
 ]
+VIVID = True

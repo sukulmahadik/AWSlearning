@@ -142,6 +142,41 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 .cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+/* Vivid presentation: one colour per chapter (--ch), summaries, steps, callouts */
+:root { --ch: var(--accent); }
+.progress { position: fixed; top: 0; left: 0; height: 4px; width: 0; background: var(--ch); z-index: 50; transition: width .1s linear; }
+.chapter-hero { background: color-mix(in srgb, var(--ch) 7%, var(--bg)); border: 1px solid color-mix(in srgb, var(--ch) 18%, var(--bg)); border-top: 6px solid var(--ch); border-radius: 14px; padding: 24px 28px 28px; }
+.chapter-hero .eyebrow { color: var(--ch); font-weight: 600; }
+article h2 { display: flex; gap: 14px; align-items: baseline; }
+article h2::before { content: ""; flex: none; width: 10px; height: 0.9em; border-radius: 4px; background: var(--ch); transform: translateY(0.1em); }
+article h3 { color: color-mix(in srgb, var(--ch) 72%, #101828); }
+article p.summary { background: color-mix(in srgb, var(--ch) 8%, #ffffff); border: 1px solid color-mix(in srgb, var(--ch) 24%, #ffffff); border-radius: 12px; padding: 16px 20px; font-size: 1.12rem; line-height: 1.65; }
+article p.summary::before { content: "In short"; display: block; margin-bottom: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ch); }
+article p.label { margin: 36px 0 12px; padding-left: 12px; border-left: 4px solid var(--ch); font-family: var(--display); font-size: 1.12rem; line-height: 1.35; }
+article .callout.analogy { background: #fff7e0; border: 1px solid #f3d27a; border-radius: 14px; padding: 4px 22px 10px; margin: 28px 0; max-width: 78ch; }
+article .callout.analogy p.label { border-left-color: #e0a100; margin-top: 18px; }
+article .callout.analogy > p, article .callout.analogy > ol, article .callout.analogy > ul { max-width: none; }
+article ol.steps { list-style: none; counter-reset: step; padding-left: 0; }
+article ol.steps > li { counter-increment: step; position: relative; padding-left: 46px; margin-bottom: 14px; min-height: 30px; }
+article ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.1em; width: 30px; height: 30px; border-radius: 50%; background: var(--ch); color: #ffffff; font-family: var(--display); font-weight: 700; font-size: 0.9rem; line-height: 30px; text-align: center; }
+article ul > li::marker { color: var(--ch); }
+article th { background: color-mix(in srgb, var(--ch) 13%, #ffffff); }
+article thead tr { border-bottom: 2px solid var(--ch); }
+article td:first-child { color: color-mix(in srgb, var(--ch) 55%, #101828); }
+article :not(pre) > code { background: color-mix(in srgb, var(--ch) 10%, #ffffff); color: color-mix(in srgb, var(--ch) 65%, #101828); }
+article pre { border-left: 4px solid var(--ch); }
+article pre code.hljs { background: transparent; padding: 0; }
+nav.toc li .num { color: var(--ch); font-weight: 700; }
+nav.toc li.current > a { color: var(--ch); }
+nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ffffff); }
+.cards a { border-top: 5px solid var(--ch); }
+.cards a:hover { border-color: var(--ch); }
+.cards .num { color: var(--ch); font-weight: 700; }
+.pager a:hover { border-color: var(--ch); }
+</style>
 <style>
 
 .chain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -164,7 +199,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 
 </style>
 </head>
-<body>
+<body style="--ch:#1c64d6">
+<div class="progress" aria-hidden="true"></div>
 <script>(function(){var m={"start-here-the-basic-ideas-in-plain-words": "agentcore-identity/basics.html", "the-big-picture": "agentcore-identity/basics.html", "why-agents-need-their-own-identity-system": "agentcore-identity/why.html", "inbound-authentication-who-may-call-your-agent": "agentcore-identity/inbound.html", "workload-identities-the-agent-s-own-identity": "agentcore-identity/workload-identity.html", "workload-access-tokens-tying-the-agent-to-a-user": "agentcore-identity/workload-identity.html", "the-token-vault-and-credential-providers": "agentcore-identity/token-vault.html", "api-keys": "agentcore-identity/token-vault.html", "outbound-flows-acting-for-a-user-or-acting-alone": "agentcore-identity/outbound.html", "session-binding-and-the-callback-flow": "agentcore-identity/outbound.html", "using-the-agentcore-sdk-decorators-in-your-agent-code": "agentcore-identity/sdk.html", "setting-up-a-credential-provider-step-by-step": "agentcore-identity/setup.html", "agentcore-gateway-inbound-and-outbound-auth-for-tools": "agentcore-identity/setup.html", "local-development-vs-agentcore-runtime": "agentcore-identity/production.html", "security-practices-and-common-mistakes": "agentcore-identity/production.html", "pricing-and-limits": "agentcore-identity/pricing-and-cognito.html", "how-agentcore-identity-relates-to-cognito": "agentcore-identity/pricing-and-cognito.html", "glossary": "agentcore-identity/glossary.html"};var h=location.hash.slice(1);if(h&&m[h]){location.replace(m[h]+'#'+h);}})();</script>
 <p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../">&larr; AWS Learning</a></p>
 <div class="page landing">
@@ -191,24 +227,24 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
     <div class="part-head">Part 1 · How it fits</div>
     <p class="part-intro">The core ideas, in order. Each chapter builds on the ones before it.</p>
     <ul class="cards">
-    <li><a href="agentcore-identity/basics.html"><span class="num">Chapter 01</span><span class="t">The basics</span><span class="d">Agents, tools, inbound and outbound auth, workload identities, tokens, OAuth flows, API keys and the token vault, then how the pieces fit together.</span><span class="m">about 5 min · 2 sections</span></a></li>
-    <li><a href="agentcore-identity/why.html"><span class="num">Chapter 02</span><span class="t">Why agents need their own identity system</span><span class="d">The problems agents create for ordinary login systems, delegation vs impersonation, and what AgentCore Identity is not.</span><span class="m">about 2 min</span></a></li>
-    <li><a href="agentcore-identity/inbound.html"><span class="num">Chapter 03</span><span class="t">Inbound authentication: who may call your agent</span><span class="d">IAM (SigV4) vs JWT bearer tokens, configuring the JWT authorizer, and when to use each.</span><span class="m">about 3 min</span></a></li>
-    <li><a href="agentcore-identity/workload-identity.html"><span class="num">Chapter 04</span><span class="t">Workload identities and access tokens</span><span class="d">The agent's own identity, the agent identity directory, and the token that ties an agent to a user.</span><span class="m">about 4 min · 2 sections</span></a></li>
-    <li><a href="agentcore-identity/token-vault.html"><span class="num">Chapter 05</span><span class="t">The token vault, credential providers and API keys</span><span class="d">Where credentials live, how they are protected, built-in and custom providers, and API key storage.</span><span class="m">about 4 min · 2 sections</span></a></li>
-    <li><a href="agentcore-identity/outbound.html"><span class="num">Chapter 06</span><span class="t">Outbound flows and session binding</span><span class="d">Acting for a user (3LO), acting alone (M2M), token exchange, and confirming the right user after consent.</span><span class="m">about 6 min · 2 sections</span></a></li>
+    <li style="--ch:#1c64d6"><a href="agentcore-identity/basics.html"><span class="num">Chapter 01</span><span class="t">The basics</span><span class="d">Agents, tools, inbound and outbound auth, workload identities, tokens, OAuth flows, API keys and the token vault, then how the pieces fit together.</span><span class="m">about 5 min · 2 sections</span></a></li>
+    <li style="--ch:#6f42c1"><a href="agentcore-identity/why.html"><span class="num">Chapter 02</span><span class="t">Why agents need their own identity system</span><span class="d">The problems agents create for ordinary login systems, delegation vs impersonation, and what AgentCore Identity is not.</span><span class="m">about 2 min</span></a></li>
+    <li style="--ch:#0b7a6e"><a href="agentcore-identity/inbound.html"><span class="num">Chapter 03</span><span class="t">Inbound authentication: who may call your agent</span><span class="d">IAM (SigV4) vs JWT bearer tokens, configuring the JWT authorizer, and when to use each.</span><span class="m">about 3 min</span></a></li>
+    <li style="--ch:#c2410c"><a href="agentcore-identity/workload-identity.html"><span class="num">Chapter 04</span><span class="t">Workload identities and access tokens</span><span class="d">The agent's own identity, the agent identity directory, and the token that ties an agent to a user.</span><span class="m">about 4 min · 2 sections</span></a></li>
+    <li style="--ch:#be185d"><a href="agentcore-identity/token-vault.html"><span class="num">Chapter 05</span><span class="t">The token vault, credential providers and API keys</span><span class="d">Where credentials live, how they are protected, built-in and custom providers, and API key storage.</span><span class="m">about 4 min · 2 sections</span></a></li>
+    <li style="--ch:#2f7d32"><a href="agentcore-identity/outbound.html"><span class="num">Chapter 06</span><span class="t">Outbound flows and session binding</span><span class="d">Acting for a user (3LO), acting alone (M2M), token exchange, and confirming the right user after consent.</span><span class="m">about 6 min · 2 sections</span></a></li>
     </ul>
     <div class="part-head">Part 2 · When you build</div>
     <p class="part-intro">The sections above explain how the pieces fit together. The sections below cover what you actually do when you build an agent: the code, the setup steps, gateways, local testing, security, cost, and how it all relates to Cognito.</p>
     <ul class="cards">
-    <li><a href="agentcore-identity/sdk.html"><span class="num">Chapter 07</span><span class="t">Using the AgentCore SDK decorators in your agent code</span><span class="d">@requires_access_token and @requires_api_key: parameters, behaviour and using them as agent tools.</span><span class="m">about 3 min</span></a></li>
-    <li><a href="agentcore-identity/setup.html"><span class="num">Chapter 08</span><span class="t">Setting up providers and gateways</span><span class="d">Registering a credential provider step by step, and inbound and outbound auth on AgentCore Gateway.</span><span class="m">about 4 min · 2 sections</span></a></li>
-    <li><a href="agentcore-identity/production.html"><span class="num">Chapter 09</span><span class="t">From laptop to production</span><span class="d">How local, Runtime and self-hosted agents differ, a development path, security practices and common mistakes.</span><span class="m">about 4 min · 2 sections</span></a></li>
-    <li><a href="agentcore-identity/pricing-and-cognito.html"><span class="num">Chapter 10</span><span class="t">Pricing, limits and Cognito</span><span class="d">What AgentCore Identity costs, limits to know, and how it works alongside Cognito.</span><span class="m">about 3 min · 2 sections</span></a></li>
+    <li style="--ch:#4338ca"><a href="agentcore-identity/sdk.html"><span class="num">Chapter 07</span><span class="t">Using the AgentCore SDK decorators in your agent code</span><span class="d">@requires_access_token and @requires_api_key: parameters, behaviour and using them as agent tools.</span><span class="m">about 3 min</span></a></li>
+    <li style="--ch:#b42318"><a href="agentcore-identity/setup.html"><span class="num">Chapter 08</span><span class="t">Setting up providers and gateways</span><span class="d">Registering a credential provider step by step, and inbound and outbound auth on AgentCore Gateway.</span><span class="m">about 4 min · 2 sections</span></a></li>
+    <li style="--ch:#0e7490"><a href="agentcore-identity/production.html"><span class="num">Chapter 09</span><span class="t">From laptop to production</span><span class="d">How local, Runtime and self-hosted agents differ, a development path, security practices and common mistakes.</span><span class="m">about 4 min · 2 sections</span></a></li>
+    <li style="--ch:#a16207"><a href="agentcore-identity/pricing-and-cognito.html"><span class="num">Chapter 10</span><span class="t">Pricing, limits and Cognito</span><span class="d">What AgentCore Identity costs, limits to know, and how it works alongside Cognito.</span><span class="m">about 3 min · 2 sections</span></a></li>
     </ul>
     <div class="part-head">Reference</div>
     <ul class="cards">
-    <li><a href="agentcore-identity/glossary.html"><span class="num">Reference</span><span class="t">Glossary</span><span class="d">One-line definitions of every term used in the guide.</span><span class="m">about 2 min</span></a></li>
+    <li style="--ch:#7e22ce"><a href="agentcore-identity/glossary.html"><span class="num">Reference</span><span class="t">Glossary</span><span class="d">One-line definitions of every term used in the guide.</span><span class="m">about 2 min</span></a></li>
     </ul>
 
     <footer class="sources">
@@ -233,5 +269,18 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
     </footer>
   </article>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try { hljs.highlightAll(); } catch (e) {}
+(function () {
+  var bar = document.querySelector('.progress');
+  if (!bar) return;
+  function update() {
+    var h = document.documentElement, max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  }
+  document.addEventListener('scroll', update, { passive: true }); update();
+})();
+</script>
 </body>
 </html>

@@ -142,6 +142,41 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 .cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+/* Vivid presentation: one colour per chapter (--ch), summaries, steps, callouts */
+:root { --ch: var(--accent); }
+.progress { position: fixed; top: 0; left: 0; height: 4px; width: 0; background: var(--ch); z-index: 50; transition: width .1s linear; }
+.chapter-hero { background: color-mix(in srgb, var(--ch) 7%, var(--bg)); border: 1px solid color-mix(in srgb, var(--ch) 18%, var(--bg)); border-top: 6px solid var(--ch); border-radius: 14px; padding: 24px 28px 28px; }
+.chapter-hero .eyebrow { color: var(--ch); font-weight: 600; }
+article h2 { display: flex; gap: 14px; align-items: baseline; }
+article h2::before { content: ""; flex: none; width: 10px; height: 0.9em; border-radius: 4px; background: var(--ch); transform: translateY(0.1em); }
+article h3 { color: color-mix(in srgb, var(--ch) 72%, #101828); }
+article p.summary { background: color-mix(in srgb, var(--ch) 8%, #ffffff); border: 1px solid color-mix(in srgb, var(--ch) 24%, #ffffff); border-radius: 12px; padding: 16px 20px; font-size: 1.12rem; line-height: 1.65; }
+article p.summary::before { content: "In short"; display: block; margin-bottom: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ch); }
+article p.label { margin: 36px 0 12px; padding-left: 12px; border-left: 4px solid var(--ch); font-family: var(--display); font-size: 1.12rem; line-height: 1.35; }
+article .callout.analogy { background: #fff7e0; border: 1px solid #f3d27a; border-radius: 14px; padding: 4px 22px 10px; margin: 28px 0; max-width: 78ch; }
+article .callout.analogy p.label { border-left-color: #e0a100; margin-top: 18px; }
+article .callout.analogy > p, article .callout.analogy > ol, article .callout.analogy > ul { max-width: none; }
+article ol.steps { list-style: none; counter-reset: step; padding-left: 0; }
+article ol.steps > li { counter-increment: step; position: relative; padding-left: 46px; margin-bottom: 14px; min-height: 30px; }
+article ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.1em; width: 30px; height: 30px; border-radius: 50%; background: var(--ch); color: #ffffff; font-family: var(--display); font-weight: 700; font-size: 0.9rem; line-height: 30px; text-align: center; }
+article ul > li::marker { color: var(--ch); }
+article th { background: color-mix(in srgb, var(--ch) 13%, #ffffff); }
+article thead tr { border-bottom: 2px solid var(--ch); }
+article td:first-child { color: color-mix(in srgb, var(--ch) 55%, #101828); }
+article :not(pre) > code { background: color-mix(in srgb, var(--ch) 10%, #ffffff); color: color-mix(in srgb, var(--ch) 65%, #101828); }
+article pre { border-left: 4px solid var(--ch); }
+article pre code.hljs { background: transparent; padding: 0; }
+nav.toc li .num { color: var(--ch); font-weight: 700; }
+nav.toc li.current > a { color: var(--ch); }
+nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ffffff); }
+.cards a { border-top: 5px solid var(--ch); }
+.cards a:hover { border-color: var(--ch); }
+.cards .num { color: var(--ch); font-weight: 700; }
+.pager a:hover { border-color: var(--ch); }
+</style>
 <style>
 
 .chain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -164,7 +199,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 
 </style>
 </head>
-<body>
+<body style="--ch:#c2410c">
+<div class="progress" aria-hidden="true"></div>
 <p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
 <div class="page">
   <header class="hero chapter-hero">
@@ -180,27 +216,27 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
       <a class="home" href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a>
       <ol>
         <li class="part">Part 1 · How it fits</li>
-        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
-        <li><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
-        <li><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
-        <li class="current"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a><ul><li><a href="#workload-identities-the-agent-s-own-identity">Workload identities: the agent's own identity</a></li><li><a href="#workload-access-tokens-tying-the-agent-to-a-user">Workload access tokens: tying the agent to a user</a></li></ul></li>
-        <li><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
-        <li><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
+        <li style="--ch:#1c64d6"><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li style="--ch:#6f42c1"><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
+        <li style="--ch:#0b7a6e"><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
+        <li class="current" style="--ch:#c2410c"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a><ul><li><a href="#workload-identities-the-agent-s-own-identity">Workload identities: the agent's own identity</a></li><li><a href="#workload-access-tokens-tying-the-agent-to-a-user">Workload access tokens: tying the agent to a user</a></li></ul></li>
+        <li style="--ch:#be185d"><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
+        <li style="--ch:#2f7d32"><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
         <li class="part">Part 2 · When you build</li>
-        <li><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
-        <li><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
-        <li><a href="production.html"><span class="num">09</span>From laptop to production</a></li>
-        <li><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
+        <li style="--ch:#4338ca"><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
+        <li style="--ch:#b42318"><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
+        <li style="--ch:#0e7490"><a href="production.html"><span class="num">09</span>From laptop to production</a></li>
+        <li style="--ch:#a16207"><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
         <li class="part">Reference</li>
-        <li><a href="glossary.html">Glossary</a></li>
+        <li style="--ch:#7e22ce"><a href="glossary.html">Glossary</a></li>
       </ol>
     </details>
   </nav>
 
   <article>
 <h2 id="workload-identities-the-agent-s-own-identity">Workload identities: the agent's own identity</h2>
-<p>A <strong>workload identity</strong> is AgentCore's identity record for one agent (or gateway). It lets the agent prove <em>which agent</em> is asking for a credential, separately from <em>which user</em> it is helping. AWS also calls this an <strong>agent identity</strong>: a workload identity with agent-specific attributes (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-terminology.html" target="_blank" rel="noopener">AWS terminology</a>).</p>
-<p><strong>Where workload identities live: the agent identity directory</strong></p>
+<p class="summary">A <strong>workload identity</strong> is AgentCore's identity record for one agent (or gateway). It lets the agent prove <em>which agent</em> is asking for a credential, separately from <em>which user</em> it is helping. AWS also calls this an <strong>agent identity</strong>: a workload identity with agent-specific attributes (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-terminology.html" rel="noopener" target="_blank">AWS terminology</a>).</p>
+<p class="label"><strong>Where workload identities live: the agent identity directory</strong></p>
 <p>All workload identities in an account and Region sit in an <strong>agent identity directory</strong> (today, the one named <code>default</code>). AWS compares it to a Cognito User Pool, but for agents instead of people: one place to list, govern and write policies for every agent identity.</p>
 <p>Each workload identity has:</p>
 <div class="table-wrap wide"><table>
@@ -235,7 +271,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </tbody>
 </table></div>
 <p>Because the ARN is a path, an IAM policy can target one agent (<code>.../workload-identity/travel-agent</code>) or every agent in the directory (<code>.../workload-identity/*</code>).</p>
-<p><strong>How workload identities are created</strong></p>
+<p class="label"><strong>How workload identities are created</strong></p>
 <ul>
 <li><strong>Automatically</strong> when you create an AgentCore Runtime or Gateway. The runtime's identity is linked to the service, which then fetches tokens on its behalf.</li>
 <li><strong>Manually</strong> with <code>CreateWorkloadIdentity</code>, for an agent you host elsewhere: on Amazon ECS, EKS, Lambda, your own servers, or another cloud. The identity works the same way wherever the agent runs.</li>
@@ -244,10 +280,10 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <p><strong>Permissions.</strong> Agents created on or after 13 October 2025 get their identity permissions through a service-linked role, <code>AWSServiceRoleForBedrockAgentCoreRuntimeIdentity</code>, so you no longer attach those permissions to the execution role yourself. Older agents still need them on their execution role.</p>
 
 <h2 id="workload-access-tokens-tying-the-agent-to-a-user">Workload access tokens: tying the agent to a user</h2>
-<p>A <strong>workload access token</strong> is a short-lived, AWS-signed token that means <strong>"this agent, acting for this user, right now"</strong>. Your agent presents it every time it asks the token vault for a credential, and the vault uses it to decide <strong>whose</strong> tokens to release. AWS's terminology page calls the same idea an <em>agent access token</em>: one token that carries both identities, so downstream decisions can use both.</p>
-<p><strong>Why it exists</strong></p>
+<p class="summary">A <strong>workload access token</strong> is a short-lived, AWS-signed token that means <strong>"this agent, acting for this user, right now"</strong>. Your agent presents it every time it asks the token vault for a credential, and the vault uses it to decide <strong>whose</strong> tokens to release. AWS's terminology page calls the same idea an <em>agent access token</em>: one token that carries both identities, so downstream decisions can use both.</p>
+<p class="label"><strong>Why it exists</strong></p>
 <p>The token vault holds Maya's Google token, Raj's GitHub token and thousands more. When the agent asks "give me the Google token", the vault must know two things: is this really the agent the token was granted to, and which user is the agent working for? The workload access token answers both in one signed package, so the agent never has to (and can't) say "I'm working for Maya" without proof.</p>
-<p><strong>Three ways to get one</strong></p>
+<p class="label"><strong>Three ways to get one</strong></p>
 <div class="table-wrap wide"><table>
 <thead>
 <tr>
@@ -275,7 +311,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </tbody>
 </table></div>
 <p><strong>In AgentCore Runtime you rarely call these yourself.</strong> With JWT inbound auth, the runtime does it for every request:</p>
-<ol>
+<ol class="steps">
 <li>Validates the caller's JWT.</li>
 <li>Takes the user's <code>iss</code> and <code>sub</code>.</li>
 <li>Looks up the agent's workload identity.</li>
@@ -286,21 +322,21 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <p><strong>Agents hosted elsewhere</strong> call these APIs directly, for example with the SDK's identity client:</p>
 <pre><code class="language-python">from bedrock_agentcore.services.identity import IdentityClient
 
-identity = IdentityClient(&quot;us-east-1&quot;)
+identity = IdentityClient("us-east-1")
 
 # Production: prove who the user is with their verified login token
 workload_token = identity.get_workload_access_token(
-    workload_name=&quot;travel-agent&quot;,
+    workload_name="travel-agent",
     user_token=users_jwt,
 )
 
 # Development only: an unverified user ID
 workload_token = identity.get_workload_access_token(
-    workload_name=&quot;travel-agent&quot;,
-    user_id=&quot;cognito+maya-1234&quot;,
+    workload_name="travel-agent",
+    user_id="cognito+maya-1234",
 )
 </code></pre>
-<p><strong>Getting user IDs right</strong></p>
+<p class="label"><strong>Getting user IDs right</strong></p>
 <ul>
 <li>Take user IDs from a trusted, authenticated source, never from text the user typed.</li>
 <li>If you have several identity providers, prefix IDs to avoid collisions, such as <code>cognito+user123</code> and <code>okta+user123</code>.</li>
@@ -332,5 +368,18 @@ workload_token = identity.get_workload_access_token(
     </footer>
   </article>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try { hljs.highlightAll(); } catch (e) {}
+(function () {
+  var bar = document.querySelector('.progress');
+  if (!bar) return;
+  function update() {
+    var h = document.documentElement, max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  }
+  document.addEventListener('scroll', update, { passive: true }); update();
+})();
+</script>
 </body>
 </html>

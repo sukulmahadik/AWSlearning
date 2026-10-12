@@ -142,6 +142,41 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 .cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+/* Vivid presentation: one colour per chapter (--ch), summaries, steps, callouts */
+:root { --ch: var(--accent); }
+.progress { position: fixed; top: 0; left: 0; height: 4px; width: 0; background: var(--ch); z-index: 50; transition: width .1s linear; }
+.chapter-hero { background: color-mix(in srgb, var(--ch) 7%, var(--bg)); border: 1px solid color-mix(in srgb, var(--ch) 18%, var(--bg)); border-top: 6px solid var(--ch); border-radius: 14px; padding: 24px 28px 28px; }
+.chapter-hero .eyebrow { color: var(--ch); font-weight: 600; }
+article h2 { display: flex; gap: 14px; align-items: baseline; }
+article h2::before { content: ""; flex: none; width: 10px; height: 0.9em; border-radius: 4px; background: var(--ch); transform: translateY(0.1em); }
+article h3 { color: color-mix(in srgb, var(--ch) 72%, #101828); }
+article p.summary { background: color-mix(in srgb, var(--ch) 8%, #ffffff); border: 1px solid color-mix(in srgb, var(--ch) 24%, #ffffff); border-radius: 12px; padding: 16px 20px; font-size: 1.12rem; line-height: 1.65; }
+article p.summary::before { content: "In short"; display: block; margin-bottom: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ch); }
+article p.label { margin: 36px 0 12px; padding-left: 12px; border-left: 4px solid var(--ch); font-family: var(--display); font-size: 1.12rem; line-height: 1.35; }
+article .callout.analogy { background: #fff7e0; border: 1px solid #f3d27a; border-radius: 14px; padding: 4px 22px 10px; margin: 28px 0; max-width: 78ch; }
+article .callout.analogy p.label { border-left-color: #e0a100; margin-top: 18px; }
+article .callout.analogy > p, article .callout.analogy > ol, article .callout.analogy > ul { max-width: none; }
+article ol.steps { list-style: none; counter-reset: step; padding-left: 0; }
+article ol.steps > li { counter-increment: step; position: relative; padding-left: 46px; margin-bottom: 14px; min-height: 30px; }
+article ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.1em; width: 30px; height: 30px; border-radius: 50%; background: var(--ch); color: #ffffff; font-family: var(--display); font-weight: 700; font-size: 0.9rem; line-height: 30px; text-align: center; }
+article ul > li::marker { color: var(--ch); }
+article th { background: color-mix(in srgb, var(--ch) 13%, #ffffff); }
+article thead tr { border-bottom: 2px solid var(--ch); }
+article td:first-child { color: color-mix(in srgb, var(--ch) 55%, #101828); }
+article :not(pre) > code { background: color-mix(in srgb, var(--ch) 10%, #ffffff); color: color-mix(in srgb, var(--ch) 65%, #101828); }
+article pre { border-left: 4px solid var(--ch); }
+article pre code.hljs { background: transparent; padding: 0; }
+nav.toc li .num { color: var(--ch); font-weight: 700; }
+nav.toc li.current > a { color: var(--ch); }
+nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ffffff); }
+.cards a { border-top: 5px solid var(--ch); }
+.cards a:hover { border-color: var(--ch); }
+.cards .num { color: var(--ch); font-weight: 700; }
+.pager a:hover { border-color: var(--ch); }
+</style>
 <style>
 
 .chain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -164,7 +199,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 
 </style>
 </head>
-<body>
+<body style="--ch:#0e7490">
+<div class="progress" aria-hidden="true"></div>
 <p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
 <div class="page">
   <header class="hero chapter-hero">
@@ -180,26 +216,26 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
       <a class="home" href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a>
       <ol>
         <li class="part">Part 1 · How it fits</li>
-        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
-        <li><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
-        <li><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
-        <li><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a></li>
-        <li><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
-        <li><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
+        <li style="--ch:#1c64d6"><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li style="--ch:#6f42c1"><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
+        <li style="--ch:#0b7a6e"><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
+        <li style="--ch:#c2410c"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a></li>
+        <li style="--ch:#be185d"><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a></li>
+        <li style="--ch:#2f7d32"><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
         <li class="part">Part 2 · When you build</li>
-        <li><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
-        <li><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
-        <li class="current"><a href="production.html"><span class="num">09</span>From laptop to production</a><ul><li><a href="#local-development-vs-agentcore-runtime">Local development vs AgentCore Runtime</a></li><li><a href="#security-practices-and-common-mistakes">Security practices and common mistakes</a></li></ul></li>
-        <li><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
+        <li style="--ch:#4338ca"><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
+        <li style="--ch:#b42318"><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
+        <li class="current" style="--ch:#0e7490"><a href="production.html"><span class="num">09</span>From laptop to production</a><ul><li><a href="#local-development-vs-agentcore-runtime">Local development vs AgentCore Runtime</a></li><li><a href="#security-practices-and-common-mistakes">Security practices and common mistakes</a></li></ul></li>
+        <li style="--ch:#a16207"><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
         <li class="part">Reference</li>
-        <li><a href="glossary.html">Glossary</a></li>
+        <li style="--ch:#7e22ce"><a href="glossary.html">Glossary</a></li>
       </ol>
     </details>
   </nav>
 
   <article>
 <h2 id="local-development-vs-agentcore-runtime">Local development vs AgentCore Runtime</h2>
-<p>The same decorators work on your laptop and in AgentCore Runtime. What changes is <strong>who supplies the workload access token</strong> and <strong>who receives the consent link</strong>.</p>
+<p class="summary">The same decorators work on your laptop and in AgentCore Runtime. What changes is <strong>who supplies the workload access token</strong> and <strong>who receives the consent link</strong>.</p>
 <div class="table-wrap wide"><table>
 <thead>
 <tr>
@@ -248,8 +284,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </tr>
 </tbody>
 </table></div>
-<p><strong>A typical development path</strong></p>
-<ol>
+<p class="label"><strong>A typical development path</strong></p>
+<ol class="steps">
 <li><strong>Prototype locally</strong> with a test user ID and <code>on_auth_url=print</code>. Approve the consent yourself in the browser. A local callback server (or the AgentCore developer tooling) completes session binding on <code>localhost</code>.</li>
 <li><strong>Add an identity provider.</strong> Create a Cognito User Pool (or use Okta, Entra ID) and get a real JWT for a test user.</li>
 <li><strong>Deploy to Runtime with JWT inbound auth</strong> (<code>agentcore deploy</code>, or <code>CreateAgentRuntime</code> with an authorizer configuration). Call the agent with <code>Authorization: Bearer &lt;JWT&gt;</code>.</li>
@@ -259,8 +295,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <p><strong>Gotcha: local tokens are not production tokens.</strong> Tokens stored while testing with a made-up user ID are tied to that ID. When you switch to real JWT-based users, each real user approves access once.</p>
 
 <h2 id="security-practices-and-common-mistakes">Security practices and common mistakes</h2>
-<p>AgentCore Identity removes the biggest risk, secrets in agent code, but a few settings still decide how safe the system is.</p>
-<p><strong>Do</strong></p>
+<p class="summary">AgentCore Identity removes the biggest risk, secrets in agent code, but a few settings still decide how safe the system is.</p>
+<p class="label"><strong>Do</strong></p>
 <ul>
 <li><strong>Use JWT inbound auth for real users.</strong> It proves who the user is cryptographically; the user ID header only trusts whoever sets it.</li>
 <li><strong>Restrict the unverified paths.</strong> Grant <code>InvokeAgentRuntimeForUser</code> and <code>GetWorkloadAccessTokenForUserId</code> only to specific trusted roles and resources, and explicitly deny them where they aren't needed.</li>
@@ -272,7 +308,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <li><strong>Monitor with CloudTrail:</strong> watch token requests, especially unexpected user IDs or spikes for one provider.</li>
 <li><strong>Front shared tools with a gateway</strong>, and make the gateway the only way in.</li>
 </ul>
-<p><strong>Common mistakes</strong></p>
+<p class="label"><strong>Common mistakes</strong></p>
 <div class="table-wrap wide"><table>
 <thead>
 <tr>
@@ -349,5 +385,18 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
     </footer>
   </article>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try { hljs.highlightAll(); } catch (e) {}
+(function () {
+  var bar = document.querySelector('.progress');
+  if (!bar) return;
+  function update() {
+    var h = document.documentElement, max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  }
+  document.addEventListener('scroll', update, { passive: true }); update();
+})();
+</script>
 </body>
 </html>

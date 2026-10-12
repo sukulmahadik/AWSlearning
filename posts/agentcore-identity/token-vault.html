@@ -142,6 +142,41 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 .cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
 .cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
 </style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+/* Vivid presentation: one colour per chapter (--ch), summaries, steps, callouts */
+:root { --ch: var(--accent); }
+.progress { position: fixed; top: 0; left: 0; height: 4px; width: 0; background: var(--ch); z-index: 50; transition: width .1s linear; }
+.chapter-hero { background: color-mix(in srgb, var(--ch) 7%, var(--bg)); border: 1px solid color-mix(in srgb, var(--ch) 18%, var(--bg)); border-top: 6px solid var(--ch); border-radius: 14px; padding: 24px 28px 28px; }
+.chapter-hero .eyebrow { color: var(--ch); font-weight: 600; }
+article h2 { display: flex; gap: 14px; align-items: baseline; }
+article h2::before { content: ""; flex: none; width: 10px; height: 0.9em; border-radius: 4px; background: var(--ch); transform: translateY(0.1em); }
+article h3 { color: color-mix(in srgb, var(--ch) 72%, #101828); }
+article p.summary { background: color-mix(in srgb, var(--ch) 8%, #ffffff); border: 1px solid color-mix(in srgb, var(--ch) 24%, #ffffff); border-radius: 12px; padding: 16px 20px; font-size: 1.12rem; line-height: 1.65; }
+article p.summary::before { content: "In short"; display: block; margin-bottom: 6px; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ch); }
+article p.label { margin: 36px 0 12px; padding-left: 12px; border-left: 4px solid var(--ch); font-family: var(--display); font-size: 1.12rem; line-height: 1.35; }
+article .callout.analogy { background: #fff7e0; border: 1px solid #f3d27a; border-radius: 14px; padding: 4px 22px 10px; margin: 28px 0; max-width: 78ch; }
+article .callout.analogy p.label { border-left-color: #e0a100; margin-top: 18px; }
+article .callout.analogy > p, article .callout.analogy > ol, article .callout.analogy > ul { max-width: none; }
+article ol.steps { list-style: none; counter-reset: step; padding-left: 0; }
+article ol.steps > li { counter-increment: step; position: relative; padding-left: 46px; margin-bottom: 14px; min-height: 30px; }
+article ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0.1em; width: 30px; height: 30px; border-radius: 50%; background: var(--ch); color: #ffffff; font-family: var(--display); font-weight: 700; font-size: 0.9rem; line-height: 30px; text-align: center; }
+article ul > li::marker { color: var(--ch); }
+article th { background: color-mix(in srgb, var(--ch) 13%, #ffffff); }
+article thead tr { border-bottom: 2px solid var(--ch); }
+article td:first-child { color: color-mix(in srgb, var(--ch) 55%, #101828); }
+article :not(pre) > code { background: color-mix(in srgb, var(--ch) 10%, #ffffff); color: color-mix(in srgb, var(--ch) 65%, #101828); }
+article pre { border-left: 4px solid var(--ch); }
+article pre code.hljs { background: transparent; padding: 0; }
+nav.toc li .num { color: var(--ch); font-weight: 700; }
+nav.toc li.current > a { color: var(--ch); }
+nav.toc li.current ul { border-left-color: color-mix(in srgb, var(--ch) 35%, #ffffff); }
+.cards a { border-top: 5px solid var(--ch); }
+.cards a:hover { border-color: var(--ch); }
+.cards .num { color: var(--ch); font-weight: 700; }
+.pager a:hover { border-color: var(--ch); }
+</style>
 <style>
 
 .chain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
@@ -164,7 +199,8 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 
 </style>
 </head>
-<body>
+<body style="--ch:#be185d">
+<div class="progress" aria-hidden="true"></div>
 <p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
 <div class="page">
   <header class="hero chapter-hero">
@@ -180,29 +216,29 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
       <a class="home" href="../agentcore-identity-explained.html">AgentCore Identity, Explained</a>
       <ol>
         <li class="part">Part 1 · How it fits</li>
-        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
-        <li><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
-        <li><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
-        <li><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a></li>
-        <li class="current"><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a><ul><li><a href="#the-token-vault-and-credential-providers">The token vault and credential providers</a></li><li><a href="#api-keys">API keys</a></li></ul></li>
-        <li><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
+        <li style="--ch:#1c64d6"><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li style="--ch:#6f42c1"><a href="why.html"><span class="num">02</span>Why agents need their own identity system</a></li>
+        <li style="--ch:#0b7a6e"><a href="inbound.html"><span class="num">03</span>Inbound authentication: who may call your agent</a></li>
+        <li style="--ch:#c2410c"><a href="workload-identity.html"><span class="num">04</span>Workload identities and access tokens</a></li>
+        <li class="current" style="--ch:#be185d"><a href="token-vault.html"><span class="num">05</span>The token vault, credential providers and API keys</a><ul><li><a href="#the-token-vault-and-credential-providers">The token vault and credential providers</a></li><li><a href="#api-keys">API keys</a></li></ul></li>
+        <li style="--ch:#2f7d32"><a href="outbound.html"><span class="num">06</span>Outbound flows and session binding</a></li>
         <li class="part">Part 2 · When you build</li>
-        <li><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
-        <li><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
-        <li><a href="production.html"><span class="num">09</span>From laptop to production</a></li>
-        <li><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
+        <li style="--ch:#4338ca"><a href="sdk.html"><span class="num">07</span>Using the AgentCore SDK decorators in your agent code</a></li>
+        <li style="--ch:#b42318"><a href="setup.html"><span class="num">08</span>Setting up providers and gateways</a></li>
+        <li style="--ch:#0e7490"><a href="production.html"><span class="num">09</span>From laptop to production</a></li>
+        <li style="--ch:#a16207"><a href="pricing-and-cognito.html"><span class="num">10</span>Pricing, limits and Cognito</a></li>
         <li class="part">Reference</li>
-        <li><a href="glossary.html">Glossary</a></li>
+        <li style="--ch:#7e22ce"><a href="glossary.html">Glossary</a></li>
       </ol>
     </details>
   </nav>
 
   <article>
 <h2 id="the-token-vault-and-credential-providers">The token vault and credential providers</h2>
-<p>The <strong>token vault</strong> is where AgentCore Identity keeps every credential an agent may use: OAuth access and refresh tokens, OAuth client secrets, and API keys. <strong>Credential providers</strong> are the configurations that tell AgentCore how to obtain those credentials from each outside service. Your code never sees a client secret; it asks for a token by provider name and gets one back.</p>
+<p class="summary">The <strong>token vault</strong> is where AgentCore Identity keeps every credential an agent may use: OAuth access and refresh tokens, OAuth client secrets, and API keys. <strong>Credential providers</strong> are the configurations that tell AgentCore how to obtain those credentials from each outside service. Your code never sees a client secret; it asks for a token by provider name and gets one back.</p>
 <h3>The token vault</h3>
 <ul>
-<li><strong>What it stores:</strong> OAuth 2.0 access and refresh tokens obtained for users, OAuth client credentials, and API keys (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/key-features-and-benefits.html" target="_blank" rel="noopener">AWS features</a>).</li>
+<li><strong>What it stores:</strong> OAuth 2.0 access and refresh tokens obtained for users, OAuth client credentials, and API keys (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/key-features-and-benefits.html" rel="noopener" target="_blank">AWS features</a>).</li>
 <li><strong>How it is protected:</strong> encrypted at rest and in transit with AWS KMS keys, either AWS-managed or your own customer-managed key.</li>
 <li><strong>Who can read what:</strong> a stored token is released only to the <strong>same agent and user combination</strong> that obtained it, and only when the agent presents a valid workload access token. Every request is checked on its own, even from callers inside the same account.</li>
 <li><strong>Refresh:</strong> when a stored access token expires and the provider gave a refresh token, AgentCore gets a new access token automatically, without asking the user again.</li>
@@ -251,7 +287,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </table></div>
 <p>The <code>code-review-agent</code> cannot get Maya's Google token, and the <code>travel-agent</code> cannot get Raj's token while working for Maya.</p>
 <h3>Credential providers</h3>
-<p>A credential provider is a named connection from AgentCore to one outside service. There are two main kinds (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html" target="_blank" rel="noopener">AWS docs</a>):</p>
+<p>A credential provider is a named connection from AgentCore to one outside service. There are two main kinds (<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/resource-providers.html" rel="noopener" target="_blank">AWS docs</a>):</p>
 <div class="table-wrap wide"><table>
 <thead>
 <tr>
@@ -276,30 +312,30 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 </tr>
 </tbody>
 </table></div>
-<p><strong>Built-in vs custom OAuth providers</strong></p>
+<p class="label"><strong>Built-in vs custom OAuth providers</strong></p>
 <ul>
-<li><strong>Built-in vendors</strong> come with the provider's addresses already filled in. You pick a vendor and supply the client ID and secret. The list includes <code>GoogleOauth2</code>, <code>GithubOauth2</code>, <code>SlackOauth2</code>, <code>SalesforceOauth2</code>, <code>MicrosoftOauth2</code>, <code>AtlassianOauth2</code>, <code>LinkedinOauth2</code>, <code>XOauth2</code>, <code>FacebookOauth2</code>, <code>OktaOauth2</code>, <code>Auth0Oauth2</code>, <code>CognitoOauth2</code>, <code>NotionOauth2</code>, <code>DropboxOauth2</code>, <code>ZoomOauth2</code>, <code>HubspotOauth2</code> and more (<a href="https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateOauth2CredentialProvider.html" target="_blank" rel="noopener">API reference</a>).</li>
+<li><strong>Built-in vendors</strong> come with the provider's addresses already filled in. You pick a vendor and supply the client ID and secret. The list includes <code>GoogleOauth2</code>, <code>GithubOauth2</code>, <code>SlackOauth2</code>, <code>SalesforceOauth2</code>, <code>MicrosoftOauth2</code>, <code>AtlassianOauth2</code>, <code>LinkedinOauth2</code>, <code>XOauth2</code>, <code>FacebookOauth2</code>, <code>OktaOauth2</code>, <code>Auth0Oauth2</code>, <code>CognitoOauth2</code>, <code>NotionOauth2</code>, <code>DropboxOauth2</code>, <code>ZoomOauth2</code>, <code>HubspotOauth2</code> and more (<a href="https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateOauth2CredentialProvider.html" rel="noopener" target="_blank">API reference</a>).</li>
 <li><strong><code>CustomOauth2</code></strong> works with any OAuth 2.0 provider. You give its discovery URL (or its authorization and token addresses), the client ID and the secret.</li>
 </ul>
 <p><strong>Where the secrets go.</strong> When you create an OAuth provider, AgentCore stores the client secret in <strong>AWS Secrets Manager</strong> and returns its ARN. You can let AgentCore manage that secret, or point it at a secret you already manage (<code>clientSecretSource: EXTERNAL</code>). API key providers work the same way.</p>
 <p><strong>The callback URL.</strong> Creating an OAuth provider returns a <code>callbackUrl</code> unique to that provider, such as <code>https://bedrock-agentcore.us-east-1.amazonaws.com/identities/oauth2/callback/&lt;id&gt;</code>. You must add it to the redirect URIs of the app you registered at Google, GitHub or Slack, because that is where the provider sends users back after they approve.</p>
 
 <h2 id="api-keys">API keys</h2>
-<p>Some services skip OAuth and hand out a single <strong>API key</strong>: weather, search, maps, many AI model APIs. AgentCore Identity stores these in the token vault too, behind an <strong>API key credential provider</strong>, so the key never appears in your code, prompts or environment variables.</p>
-<p><strong>How it works</strong></p>
-<ol>
+<p class="summary">Some services skip OAuth and hand out a single <strong>API key</strong>: weather, search, maps, many AI model APIs. AgentCore Identity stores these in the token vault too, behind an <strong>API key credential provider</strong>, so the key never appears in your code, prompts or environment variables.</p>
+<p class="label"><strong>How it works</strong></p>
+<ol class="steps">
 <li><strong>Store the key once</strong> in an API key credential provider, either by giving AgentCore the key, or by pointing it at an existing AWS Secrets Manager secret (<code>secretId</code> and the JSON key that holds the value).</li>
 <li><strong>Ask for it by name</strong> in your code with <code>@requires_api_key(provider_name="...")</code>. The SDK calls <code>GetResourceApiKey</code> with the agent's workload access token.</li>
 <li><strong>AgentCore returns the key</strong> to that agent only, and your function receives it as an <code>api_key</code> argument.</li>
 </ol>
 <pre><code class="language-python">from bedrock_agentcore.identity.auth import requires_api_key
 
-@requires_api_key(provider_name=&quot;weather-api-key&quot;)
+@requires_api_key(provider_name="weather-api-key")
 async def get_forecast(city: str, *, api_key: str) -&gt; dict:
     # api_key is injected by AgentCore; it is never written in code or config
     ...
 </code></pre>
-<p><strong>API keys vs OAuth</strong></p>
+<p class="label"><strong>API keys vs OAuth</strong></p>
 <div class="table-wrap wide"><table>
 <thead>
 <tr>
@@ -362,5 +398,18 @@ async def get_forecast(city: str, *, api_key: str) -&gt; dict:
     </footer>
   </article>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+try { hljs.highlightAll(); } catch (e) {}
+(function () {
+  var bar = document.querySelector('.progress');
+  if (!bar) return;
+  function update() {
+    var h = document.documentElement, max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  }
+  document.addEventListener('scroll', update, { passive: true }); update();
+})();
+</script>
 </body>
 </html>
