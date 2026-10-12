@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="How Identity Pools pick IAM roles, and every layer that decides what a signed-in user can do.">
+<meta name="description" content="Every layer that decides what a signed-in user can do, and who enforces each one.">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Access control and IAM roles · Cognito, Explained</title>
+<title>How Cognito controls what a signed-in user can access · Cognito, Explained</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -148,9 +148,9 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 6 of 12 · about 5 minutes</div>
-    <h1>Access control and IAM roles</h1>
-    <p class="dek">How Identity Pools pick IAM roles, and every layer that decides what a signed-in user can do.</p>
+    <div class="eyebrow">Chapter 7 of 13 · about 2 minutes</div>
+    <h1>How Cognito controls what a signed-in user can access</h1>
+    <p class="dek">Every layer that decides what a signed-in user can do, and who enforces each one.</p>
   </header>
 
   <nav class="toc" aria-label="Chapters">
@@ -164,14 +164,15 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
         <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
         <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
         <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
-        <li class="current"><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a><ul><li><a href="#iam-roles-and-identity-pools">IAM roles and Identity Pools</a></li><li><a href="#how-cognito-controls-what-a-signed-in-user-can-access">How Cognito controls what a signed-in user can access</a></li></ul></li>
-        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li><a href="identity-pools.html"><span class="num">06</span>Identity Pools and AWS credentials</a></li>
+        <li class="current"><a href="access-control.html"><span class="num">07</span>How Cognito controls what a signed-in user can access</a></li>
+        <li><a href="callbacks.html"><span class="num">08</span>Callback URLs and callback servers</a></li>
         <li class="part">Part 2 · When you build</li>
-        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
-        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
-        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
-        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
-        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li><a href="token-safety.html"><span class="num">09</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">10</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">11</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">12</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">13</span>Where AgentCore Identity fits next to Cognito</a></li>
         <li class="part">Reference</li>
         <li><a href="glossary.html">Glossary</a></li>
       </ol>
@@ -179,72 +180,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
   </nav>
 
   <article>
-<h2 id="iam-roles-and-identity-pools">IAM roles and Identity Pools</h2>
-<p>An Identity Pool has no permissions of its own. Its job is to <strong>pick an IAM role</strong> for each user and get temporary credentials for it, so the role's rules decide exactly what the user can do in AWS.</p>
-<p><strong>A quick refresher on IAM roles</strong></p>
-<ul>
-<li>An <strong>IAM policy</strong> is a written rule, such as "allow reading files from the bucket <code>my-photos</code>".</li>
-<li>An <strong>IAM role</strong> is a named bundle of policies, for example <code>PhotoAppUserRole</code>.</li>
-<li>A role is not tied to one person. Anyone the role <em>trusts</em> can borrow it for a limited time. Borrowing a role is called <strong>assuming</strong> it.</li>
-<li>The role's <strong>trust policy</strong> says who is allowed to borrow it. Its <strong>permission policies</strong> say what the borrower can do.</li>
-</ul>
-<p><strong>What happens when a user asks the Identity Pool for access</strong></p>
-<ol>
-<li>The app sends the user's token (from the User Pool, Google, and so on).</li>
-<li>The Identity Pool checks the token and looks up or creates the user's identity ID.</li>
-<li>The Identity Pool chooses a role using rules you configured (see below).</li>
-<li>It asks AWS STS: "let this user assume this role". The technical name of that request is <code>AssumeRoleWithWebIdentity</code>.</li>
-<li>STS returns temporary credentials, by default valid for one hour.</li>
-<li>The app uses those credentials to call AWS. AWS checks every call against the role's permission policies.</li>
-</ol>
-<p><strong>How the role is chosen</strong></p>
-<div class="table-wrap wide"><table>
-<thead>
-<tr>
-<th>Method</th>
-<th>How it works</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Default roles</td>
-<td>Every signed-in user gets one role; guests (if allowed) get another, more limited role</td>
-<td>All users get <code>AppUserRole</code></td>
-</tr>
-<tr>
-<td>Role from the token</td>
-<td>Each User Pool group can be linked to a role; the token says which group, and so which role</td>
-<td>Users in group <code>admin</code> get <code>AdminRole</code></td>
-</tr>
-<tr>
-<td>Rules</td>
-<td>You write "if this claim has this value, use this role" rules, checked in order</td>
-<td>Users whose <code>department</code> is <code>finance</code> get <code>FinanceDataRole</code></td>
-</tr>
-</tbody>
-</table></div>
-<p><strong>The trust policy: who may borrow the role</strong></p>
-<p>Each role used by an Identity Pool must say it trusts Cognito, and should be limited to <strong>your</strong> Identity Pool and to <strong>signed-in</strong> users. Without these conditions, another Identity Pool could borrow your role.</p>
-<pre><code class="language-json">&quot;Condition&quot;: {
-  &quot;StringEquals&quot;: { &quot;cognito-identity.amazonaws.com:aud&quot;: &quot;us-east-1:&lt;your-identity-pool-id&gt;&quot; },
-  &quot;ForAnyValue:StringLike&quot;: { &quot;cognito-identity.amazonaws.com:amr&quot;: &quot;authenticated&quot; }
-}
-</code></pre>
-<p>In plain words: "Only Cognito may hand out this role, only for this Identity Pool, and only to users who actually logged in."</p>
-<p><strong>One role, but each user sees only their own data</strong></p>
-<p>You do not need a separate role per user. A policy can include a placeholder that AWS fills in with the user's identity ID at the moment of each request:</p>
-<pre><code class="language-json">{
-  &quot;Effect&quot;: &quot;Allow&quot;,
-  &quot;Action&quot;: [&quot;s3:GetObject&quot;, &quot;s3:PutObject&quot;],
-  &quot;Resource&quot;: &quot;arn:aws:s3:::my-bucket/users/${cognito-identity.amazonaws.com:sub}/*&quot;
-}
-</code></pre>
-<p>This lets every user read and write only inside their own folder, <code>users/&lt;their-identity-id&gt;/</code>.</p>
-<p><strong>Using user details in permissions (ABAC)</strong></p>
-<p>Attribute-based access control means deciding access from the user's details. The Identity Pool can attach details such as <code>department</code> to the credentials as <strong>tags</strong>, and a policy can say "allow only if the user's department tag matches the resource's department tag".</p>
-
-<h2 id="how-cognito-controls-what-a-signed-in-user-can-access">How Cognito controls what a signed-in user can access</h2>
+<span id="how-cognito-controls-what-a-signed-in-user-can-access"></span>
 <p>Cognito mostly <strong>labels</strong> users rather than <strong>guarding</strong> your resources. It writes groups, scopes and other facts into the token; something else, such as API Gateway, your own code, or AWS IAM, reads those labels and allows or blocks the request.</p>
 <p><strong>An analogy</strong></p>
 <p>A conference badge says "Speaker" or "Attendee". The badge printer (Cognito) does not stand at each door. The door staff (your API, or IAM) read the badge and decide whether to let you in.</p>
@@ -317,7 +253,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <p><strong>When there is no user at all</strong></p>
 <p>A background service talking to your API (machine to machine) logs in as itself using the <strong>client credentials</strong> flow: it sends its client ID and secret and receives an access token. There are no users or groups here, so the token's <strong>scopes are the entire permission system</strong>.</p>
 
-    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="tokens-and-scopes.html"><span class="dir">&larr; Previous</span><span class="t">Tokens, scopes and resource servers</span></a><a class="next" href="callbacks.html"><span class="dir">Next &rarr;</span><span class="t">Callback URLs and callback servers</span></a></nav>
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="identity-pools.html"><span class="dir">&larr; Previous</span><span class="t">Identity Pools and AWS credentials</span></a><a class="next" href="callbacks.html"><span class="dir">Next &rarr;</span><span class="t">Callback URLs and callback servers</span></a></nav>
 
     <footer class="sources">
       <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>

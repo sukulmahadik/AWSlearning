@@ -148,7 +148,7 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
 <div class="page">
   <header class="hero chapter-hero">
     <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
-    <div class="eyebrow">Chapter 5 of 12 · about 15 minutes</div>
+    <div class="eyebrow">Chapter 5 of 13 · about 15 minutes</div>
     <h1>Tokens, scopes and resource servers</h1>
     <p class="dek">What is inside ID, access and refresh tokens, how resource servers and custom scopes work, and where every claim comes from.</p>
   </header>
@@ -164,14 +164,15 @@ nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted)
         <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
         <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
         <li class="current"><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a><ul><li><a href="#what-is-inside-a-token-claims-and-scopes">What is inside a token: claims and scopes</a></li><li><a href="#resource-servers-and-custom-scopes-how-they-work">Resource servers and custom scopes: how they work</a></li><li><a href="#defining-claims-and-scopes-in-depth">Defining claims and scopes in depth</a></li></ul></li>
-        <li><a href="access-control.html"><span class="num">06</span>Access control and IAM roles</a></li>
-        <li><a href="callbacks.html"><span class="num">07</span>Callback URLs and callback servers</a></li>
+        <li><a href="identity-pools.html"><span class="num">06</span>Identity Pools and AWS credentials</a></li>
+        <li><a href="access-control.html"><span class="num">07</span>How Cognito controls what a signed-in user can access</a></li>
+        <li><a href="callbacks.html"><span class="num">08</span>Callback URLs and callback servers</a></li>
         <li class="part">Part 2 · When you build</li>
-        <li><a href="token-safety.html"><span class="num">08</span>Logging out, storing and checking tokens</a></li>
-        <li><a href="building-login.html"><span class="num">09</span>Building the login experience</a></li>
-        <li><a href="users.html"><span class="num">10</span>Moving and linking users</a></li>
-        <li><a href="architecture.html"><span class="num">11</span>Architecture, regions and pricing</a></li>
-        <li><a href="agentcore.html"><span class="num">12</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li><a href="token-safety.html"><span class="num">09</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">10</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">11</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">12</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">13</span>Where AgentCore Identity fits next to Cognito</a></li>
         <li class="part">Reference</li>
         <li><a href="glossary.html">Glossary</a></li>
       </ol>
@@ -617,7 +618,7 @@ ReportingJobClient:
 </ul>
 <p><strong>Claims and scopes together, in one sentence:</strong> define <em>who the user is</em> with attributes and groups (claims, mostly in the ID token), define <em>what a caller may do</em> with resource servers and scopes (in the access token), and use the pre token generation trigger when you need to bridge the two per user.</p>
 
-    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="identity-providers.html"><span class="dir">&larr; Previous</span><span class="t">Google, Facebook and other identity providers</span></a><a class="next" href="access-control.html"><span class="dir">Next &rarr;</span><span class="t">Access control and IAM roles</span></a></nav>
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="identity-providers.html"><span class="dir">&larr; Previous</span><span class="t">Google, Facebook and other identity providers</span></a><a class="next" href="identity-pools.html"><span class="dir">Next &rarr;</span><span class="t">Identity Pools and AWS credentials</span></a></nav>
 
     <footer class="sources">
       <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>

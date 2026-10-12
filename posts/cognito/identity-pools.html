@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How an Identity Pool turns a login into temporary AWS credentials, its providers, flows and guest access, and how it picks IAM roles.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Identity Pools and AWS credentials · Cognito, Explained</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Bright, light-only palette by design. Layout: long-form article column (~68ch) with a sticky contents rail on wide screens; JWT-segment hero as the subject's signature. */
+:root {
+  --bg: #fbfcfe;
+  --surface: #ffffff;
+  --fg: #1b2533;
+  --muted: #5a6678;
+  --rule: #dde4ef;
+  --accent: #1f6feb;
+  --accent-soft: #e8f1ff;
+  --seg-header: #e5533d;
+  --seg-payload: #7c4dff;
+  --seg-sig: #00a37a;
+  --code-bg: #f2f6fc;
+  --note-bg: #fff6d6;
+  --note-rule: #f2b705;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 1.125rem; line-height: 1.75; }
+@media (max-width: 600px) { body { font-size: 1.0625rem; line-height: 1.7; } }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.page { padding-inline: 20px; padding-block: 40px 80px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 64px; max-width: 1360px; margin: 0 auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 250px minmax(0, 1fr); } }
+article { min-width: 0; max-width: 980px; }
+article > p, article > ul, article > ol, article > h3 { max-width: 78ch; }
+
+/* Hero */
+.hero { grid-column: 1 / -1; max-width: 1360px; display: grid; gap: 20px; padding-block: 8px 12px; border-bottom: 1px solid var(--rule); padding-bottom: 32px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.dek { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0; }
+.byline { font-family: var(--display); font-size: 0.9rem; color: var(--muted); }
+.jwt { font-family: var(--mono); font-size: 0.82rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; overflow-wrap: anywhere; max-width: 100%; }
+.jwt .h { color: var(--seg-header); } .jwt .p { color: var(--seg-payload); } .jwt .s { color: var(--seg-sig); } .jwt .dot { color: var(--muted); font-weight: 600; }
+.jwt-key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; font-family: var(--display); font-size: 0.82rem; color: var(--muted); }
+.jwt-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: currentColor; }
+.jwt-key .h { color: var(--seg-header); } .jwt-key .p { color: var(--seg-payload); } .jwt-key .s { color: var(--seg-sig); }
+.jwt-key b { color: var(--fg); font-weight: 600; }
+
+/* Contents */
+nav.toc { min-width: 0; font-family: var(--display); font-size: 0.9rem; }
+nav.toc details { border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); padding: 12px 16px; }
+nav.toc summary { cursor: pointer; font-weight: 700; }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; }
+nav.toc li a { color: var(--muted); text-decoration: none; display: block; padding: 2px 0; }
+nav.toc li a:hover { color: var(--accent); }
+nav.toc .part { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 12px; }
+@media (min-width: 1100px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  nav.toc details { border: none; background: none; padding: 0; }
+  nav.toc summary { list-style: none; pointer-events: none; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 400; }
+  nav.toc summary::-webkit-details-marker { display: none; }
+}
+
+/* Article type */
+h2 { font-family: var(--display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; letter-spacing: -0.01em; margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 24px; }
+h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 40px 0 10px; text-wrap: balance; }
+.part-label { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 88px 0 16px; padding-top: 24px; border-top: 2px solid var(--fg); }
+p { margin: 0 0 1.15em; }
+.lead { font-size: 1.25rem; line-height: 1.6; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1em; }
+li { margin-bottom: 0.55em; }
+li > ul, li > ol { margin-top: 0.35em; }
+strong { font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; margin: 0 0 1.4em; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre .c { color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 0 0 1.4em; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; line-height: 1.55; }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 700; font-size: 0.92rem; background: var(--accent-soft); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.wide table { min-width: 640px; }
+.note { background: var(--note-bg); border-left: 3px solid var(--note-rule); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 1.2em; }
+.note p:last-child { margin: 0; }
+.analogy { border: 1px dashed var(--rule); border-radius: 10px; padding: 14px 18px; margin: 0 0 1.2em; background: var(--surface); }
+.analogy .tag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.analogy p:last-child, .analogy ol:last-child { margin-bottom: 0; }
+figure { margin: 8px 0 1.6em; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+.diagram svg { display: block; width: 100%; min-width: 600px; height: auto; }
+figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+footer.sources { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 0.92rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+
+<style>
+/* Chapter navigation */
+.crumbs { font-family: var(--display); font-size: 0.9rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+.chapter-hero { grid-column: 1 / -1; display: grid; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 28px; }
+.chapter-hero h1 { font-size: clamp(2rem, 4.6vw, 3.2rem); }
+.chapter-hero .dek { font-size: 1.15rem; }
+article > h2:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+nav.toc .home { font-weight: 700; color: var(--fg); text-decoration: none; display: block; margin-bottom: 6px; }
+nav.toc li.current > a { color: var(--accent); font-weight: 700; }
+nav.toc li.current ul { list-style: none; padding: 4px 0 6px 14px; margin: 0; border-left: 2px solid var(--accent-soft); display: grid; gap: 2px; }
+nav.toc li.current ul a { font-size: 0.84rem; }
+nav.toc .num { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-right: 6px; }
+.pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 64px; }
+.pager a { display: grid; gap: 4px; padding: 16px 20px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); text-decoration: none; color: var(--fg); }
+.pager a:hover { border-color: var(--accent); }
+.pager a.next { text-align: right; }
+.pager .dir { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .t { font-family: var(--display); font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+/* Landing page */
+.page.landing { grid-template-columns: minmax(0, 1fr); }
+.page.landing article { max-width: none; }
+.page.landing article > ul.cards { max-width: none; }
+.part-head { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 48px 0 6px; padding-top: 20px; border-top: 2px solid var(--fg); }
+.part-intro { color: var(--muted); max-width: 78ch; margin: 0 0 20px; }
+.cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.cards li { margin: 0; }
+.cards a { display: grid; gap: 8px; height: 100%; padding: 20px 22px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); color: var(--fg); text-decoration: none; transition: border-color .15s, transform .15s; }
+.cards a:hover { border-color: var(--accent); }
+@media (prefers-reduced-motion: no-preference) { .cards a:hover { transform: translateY(-2px); } }
+.cards .num { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+.cards .t { font-family: var(--display); font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+.cards .d { color: var(--muted); font-size: 1rem; line-height: 1.55; }
+.cards .m { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+</style>
+</head>
+<body>
+<p class="back" style="max-width:1360px;margin:0 auto;padding:16px 20px 0;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:0.9rem"><a href="../../">&larr; AWS Learning</a></p>
+<div class="page">
+  <header class="hero chapter-hero">
+    <div class="crumbs"><a href="../cognito-explained.html">Cognito, Explained</a><span aria-hidden="true">/</span><span>Part 1 · How it fits</span></div>
+    <div class="eyebrow">Chapter 6 of 13 · about 9 minutes</div>
+    <h1>Identity Pools and AWS credentials</h1>
+    <p class="dek">How an Identity Pool turns a login into temporary AWS credentials, its providers, flows and guest access, and how it picks IAM roles.</p>
+  </header>
+
+  <nav class="toc" aria-label="Chapters">
+    <details open>
+      <summary>Chapters</summary>
+      <a class="home" href="../cognito-explained.html">Cognito, Explained</a>
+      <ol>
+        <li class="part">Part 1 · How it fits</li>
+        <li><a href="basics.html"><span class="num">01</span>The basics</a></li>
+        <li><a href="pools.html"><span class="num">02</span>User Pools and Identity Pools</a></li>
+        <li><a href="clients-and-pkce.html"><span class="num">03</span>Clients, secrets and PKCE</a></li>
+        <li><a href="identity-providers.html"><span class="num">04</span>Google, Facebook and other identity providers</a></li>
+        <li><a href="tokens-and-scopes.html"><span class="num">05</span>Tokens, scopes and resource servers</a></li>
+        <li class="current"><a href="identity-pools.html"><span class="num">06</span>Identity Pools and AWS credentials</a><ul><li><a href="#identity-pools-in-depth-from-a-login-to-aws-credentials">Identity Pools in depth: from a login to AWS credentials</a></li><li><a href="#iam-roles-and-identity-pools">IAM roles and Identity Pools</a></li></ul></li>
+        <li><a href="access-control.html"><span class="num">07</span>How Cognito controls what a signed-in user can access</a></li>
+        <li><a href="callbacks.html"><span class="num">08</span>Callback URLs and callback servers</a></li>
+        <li class="part">Part 2 · When you build</li>
+        <li><a href="token-safety.html"><span class="num">09</span>Logging out, storing and checking tokens</a></li>
+        <li><a href="building-login.html"><span class="num">10</span>Building the login experience</a></li>
+        <li><a href="users.html"><span class="num">11</span>Moving and linking users</a></li>
+        <li><a href="architecture.html"><span class="num">12</span>Architecture, regions and pricing</a></li>
+        <li><a href="agentcore.html"><span class="num">13</span>Where AgentCore Identity fits next to Cognito</a></li>
+        <li class="part">Reference</li>
+        <li><a href="glossary.html">Glossary</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <article>
+<h2 id="identity-pools-in-depth-from-a-login-to-aws-credentials">Identity Pools in depth: from a login to AWS credentials</h2>
+<p>An Identity Pool turns <strong>"this person has logged in"</strong> into <strong>"this person may call these AWS services directly, for the next hour"</strong>. It does not store users or check passwords. It trusts identity providers you name, gives each person a stable <strong>identity ID</strong>, picks an <strong>IAM role</strong> for them, and hands back <strong>temporary AWS credentials</strong> for that role.</p>
+<p>Its official name is <strong>Amazon Cognito Federated Identities</strong>, and in the AWS SDKs its API is called <code>cognito-identity</code> (User Pools are <code>cognito-idp</code>).</p>
+<h3>Why Identity Pools exist</h3>
+<p>User Pool tokens are understood by <strong>your</strong> API. AWS services such as S3, DynamoDB or AWS IoT only accept requests signed with <strong>AWS credentials</strong> under IAM. Without an Identity Pool, a mobile app that wants to upload a photo to S3 must send it through a server you run. With one, the app can upload directly, and IAM limits it to that user's own folder.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Without an Identity Pool</th>
+<th>With an Identity Pool</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App → your API → your server's IAM role → S3</td>
+<td>App → S3 directly, with the user's own temporary credentials</td>
+</tr>
+<tr>
+<td>You run and pay for a server in the middle</td>
+<td>No server in the data path</td>
+</tr>
+<tr>
+<td>Your code enforces per-user rules</td>
+<td>IAM policies enforce per-user rules</td>
+</tr>
+</tbody>
+</table></div>
+<h3>The parts of an Identity Pool</h3>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identity pool ID</td>
+<td>The pool's unique ID, which the app needs</td>
+<td><code>us-east-1:1a2b3c4d-1111-2222-3333-444455556666</code></td>
+</tr>
+<tr>
+<td>Identity providers</td>
+<td>The sources it trusts, each with the ID it must check tokens against</td>
+<td>A User Pool and its app client ID; Google with your app's Google client ID</td>
+</tr>
+<tr>
+<td>Identity ID</td>
+<td>A permanent ID per person, created on first use</td>
+<td><code>us-east-1:9f8e7d6c-aaaa-bbbb-cccc-ddddeeeeffff</code></td>
+</tr>
+<tr>
+<td>Authenticated role</td>
+<td>The IAM role for signed-in users</td>
+<td><code>PhotoAppUserRole</code></td>
+</tr>
+<tr>
+<td>Unauthenticated role (optional)</td>
+<td>The IAM role for guests, if guest access is switched on</td>
+<td><code>PhotoAppGuestRole</code></td>
+</tr>
+<tr>
+<td>Role rules (optional)</td>
+<td>How to pick different roles for different users</td>
+<td>Users in group <code>admin</code> get <code>PhotoAppAdminRole</code></td>
+</tr>
+<tr>
+<td>Attributes for access control (optional)</td>
+<td>Which token claims become session tags for IAM policies</td>
+<td><code>department</code> → tag <code>department</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3>Providers it can trust, and how the app names them</h3>
+<p>The app sends its tokens in a <code>Logins</code> map. The <strong>key</strong> says which provider the token came from; the <strong>value</strong> is the token itself.</p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Key in the <code>Logins</code> map</th>
+<th>Token the app sends</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cognito User Pool</td>
+<td><code>cognito-idp.&lt;region&gt;.amazonaws.com/&lt;user-pool-id&gt;</code></td>
+<td>The User Pool <strong>ID token</strong></td>
+</tr>
+<tr>
+<td>Google</td>
+<td><code>accounts.google.com</code></td>
+<td>Google's ID token</td>
+</tr>
+<tr>
+<td>Facebook</td>
+<td><code>graph.facebook.com</code></td>
+<td>Facebook's access token</td>
+</tr>
+<tr>
+<td>Sign in with Apple</td>
+<td><code>appleid.apple.com</code></td>
+<td>Apple's ID token</td>
+</tr>
+<tr>
+<td>Login with Amazon</td>
+<td><code>www.amazon.com</code></td>
+<td>Amazon's access token</td>
+</tr>
+<tr>
+<td>Any OIDC provider</td>
+<td>The provider's issuer host, e.g. <code>login.example.com</code></td>
+<td>Its ID token (the provider must be registered in IAM first)</td>
+</tr>
+<tr>
+<td>SAML provider</td>
+<td>The ARN of the SAML provider registered in IAM</td>
+<td>The SAML assertion</td>
+</tr>
+<tr>
+<td>Your own login system (<em>developer-authenticated identities</em>)</td>
+<td>A developer provider name you choose</td>
+<td>A token your <strong>backend</strong> gets from Cognito on the user's behalf</td>
+</tr>
+</tbody>
+</table></div>
+<p>For a User Pool, you register the pool <strong>and its app client ID</strong>. The Identity Pool accepts only ID tokens issued to that app client. You can also switch on a <strong>server-side token check</strong>, so Cognito confirms the user still exists and their tokens have not been revoked before issuing credentials.</p>
+<h3>How an app gets credentials, step by step</h3>
+<ol>
+<li><strong>The user signs in</strong> with their provider, for example the User Pool, and the app receives an ID token.</li>
+<li><strong><code>GetId</code></strong>: the app sends the identity pool ID and the <code>Logins</code> map. Cognito checks the token and returns the user's <strong>identity ID</strong>, creating one on first use.</li>
+<li><strong><code>GetCredentialsForIdentity</code></strong>: the app sends the identity ID and the same <code>Logins</code> map. Cognito picks the IAM role, asks AWS STS for credentials, and returns them.</li>
+<li><strong>The app receives</strong> an access key ID, a secret key, a session token and an expiry time, typically one hour away.</li>
+<li><strong>The app calls AWS directly</strong>, for example <code>s3:PutObject</code>, signing each request with those credentials. IAM checks every call against the role's policies.</li>
+<li><strong>Before expiry, the app repeats steps 3 to 4</strong>, refreshing its User Pool tokens first if needed. AWS SDKs do this automatically.</li>
+</ol>
+<p>This is the <strong>enhanced (simplified) flow</strong>, and it is the one to use. There is also an older <strong>basic (classic) flow</strong>, where the app gets an OpenID token from Cognito with <code>GetOpenIdToken</code> and calls STS <code>AssumeRoleWithWebIdentity</code> itself, naming the role. It is switched off by default; leave it off unless you have a specific reason.</p>
+<p><strong>Python (boto3)</strong></p>
+<pre><code class="language-python">import boto3
+
+REGION = &quot;us-east-1&quot;
+IDENTITY_POOL_ID = &quot;us-east-1:1a2b3c4d-1111-2222-3333-444455556666&quot;
+logins = {&quot;cognito-idp.us-east-1.amazonaws.com/us-east-1_AbC123&quot;: id_token}  # User Pool ID token
+
+identity = boto3.client(&quot;cognito-identity&quot;, region_name=REGION)
+identity_id = identity.get_id(IdentityPoolId=IDENTITY_POOL_ID, Logins=logins)[&quot;IdentityId&quot;]
+creds = identity.get_credentials_for_identity(IdentityId=identity_id, Logins=logins)[&quot;Credentials&quot;]
+
+s3 = boto3.client(&quot;s3&quot;, region_name=REGION,
+                  aws_access_key_id=creds[&quot;AccessKeyId&quot;],
+                  aws_secret_access_key=creds[&quot;SecretKey&quot;],
+                  aws_session_token=creds[&quot;SessionToken&quot;])
+s3.put_object(Bucket=&quot;my-photo-bucket&quot;, Key=f&quot;users/{identity_id}/photo.jpg&quot;, Body=photo_bytes)
+</code></pre>
+<p><strong>JavaScript (AWS SDK v3)</strong>, where the credential provider handles both calls and refreshes for you:</p>
+<pre><code class="language-javascript">import { S3Client, PutObjectCommand } from &quot;@aws-sdk/client-s3&quot;;
+import { fromCognitoIdentityPool } from &quot;@aws-sdk/credential-providers&quot;;
+
+const s3 = new S3Client({
+  region: &quot;us-east-1&quot;,
+  credentials: fromCognitoIdentityPool({
+    clientConfig: { region: &quot;us-east-1&quot; },
+    identityPoolId: &quot;us-east-1:1a2b3c4d-1111-2222-3333-444455556666&quot;,
+    logins: { &quot;cognito-idp.us-east-1.amazonaws.com/us-east-1_AbC123&quot;: idToken },
+  }),
+});
+</code></pre>
+<h3>Identity IDs: one per person, kept across logins</h3>
+<ul>
+<li>An identity ID is created the first time a person comes through the pool, and stays the same every time after. It is the natural key for per-user storage, such as <code>s3://my-photo-bucket/users/&lt;identity-id&gt;/</code>.</li>
+<li>It is <strong>not</strong> the same as the User Pool's <code>sub</code>. Store the mapping if your backend needs both.</li>
+<li><strong>Linking:</strong> if the app sends tokens from two providers together, say Google and Facebook, both are tied to one identity ID, so the person sees the same data either way.</li>
+<li><strong>Guests who sign up:</strong> a guest has an unauthenticated identity ID. When they sign in, the app can pass that existing ID along with their new login, so their guest data carries over.</li>
+<li>Identity IDs are per pool and per region. A second Identity Pool gives the same person a different ID.</li>
+</ul>
+<h3>Guest access (unauthenticated identities)</h3>
+<p>Switching on guest access lets visitors who have not signed in get <strong>very limited</strong> AWS credentials, for example to send analytics events or load a map.</p>
+<ul>
+<li>Guests receive the <strong>unauthenticated role</strong>. Give it the smallest possible permissions; anyone on the internet can obtain them.</li>
+<li>In the enhanced flow, Cognito also narrows guest credentials to a fixed list of services, as a safety net.</li>
+<li>Common uses: Amazon CloudWatch RUM (front-end monitoring), Amazon Location Service maps, sending events to Kinesis or Pinpoint.</li>
+<li>Never let the guest role read other users' data or write anything costly. Watch for abuse such as someone generating huge numbers of identities.</li>
+</ul>
+<h3>Choosing roles and limiting access</h3>
+<p>The Identity Pool decides the role; IAM decides what the role allows. The next section, "IAM roles and Identity Pools", covers the details: default, token-based and rule-based role selection, the trust policy every role needs, the <code>${cognito-identity.amazonaws.com:sub}</code> policy variable for per-user folders, and attribute-based access control with session tags.</p>
+<h3>When to use an Identity Pool, and when not to</h3>
+<p><strong>Good fits</strong></p>
+<ul>
+<li>Mobile or web apps that upload or download user files directly to and from S3.</li>
+<li>IoT devices and companion apps connecting to AWS IoT Core.</li>
+<li>Front-end apps using AWS services built for direct browser use, such as Location Service maps or CloudWatch RUM.</li>
+<li>Giving users of a company identity provider (SAML) AWS credentials for a specific tool.</li>
+</ul>
+<p><strong>Prefer your own API instead when</strong></p>
+<ul>
+<li>Access rules are complex or depend on business data, which is easier to express in code than in IAM policies.</li>
+<li>You would have to give users broad permissions, such as querying a whole DynamoDB table.</li>
+<li>You want one place to log, rate-limit and audit what users do.</li>
+</ul>
+<h3>Common mistakes</h3>
+<ul>
+<li><strong>Sending the access token instead of the ID token.</strong> For a User Pool provider, the Identity Pool needs the ID token.</li>
+<li><strong>Mismatched app client ID.</strong> The app client ID registered on the Identity Pool must match the <code>aud</code> of the ID token the app sends.</li>
+<li><strong>Roles that are too broad</strong>, such as <code>s3:*</code> on a whole bucket. Always scope to the user's own prefix with the policy variable.</li>
+<li><strong>Trust policies without conditions.</strong> Without the <code>aud</code> and <code>amr</code> conditions, other Identity Pools could assume your role.</li>
+<li><strong>Region mismatch.</strong> The identity pool ID starts with its region; the SDK client must use that region.</li>
+</ul>
+<h3>Cost</h3>
+<p>Identity Pools themselves have no extra charge. You pay for the AWS services the credentials are used on, and for the User Pool if you use one.</p>
+
+<h2 id="iam-roles-and-identity-pools">IAM roles and Identity Pools</h2>
+<p>An Identity Pool has no permissions of its own. Its job is to <strong>pick an IAM role</strong> for each user and get temporary credentials for it, so the role's rules decide exactly what the user can do in AWS.</p>
+<p><strong>A quick refresher on IAM roles</strong></p>
+<ul>
+<li>An <strong>IAM policy</strong> is a written rule, such as "allow reading files from the bucket <code>my-photos</code>".</li>
+<li>An <strong>IAM role</strong> is a named bundle of policies, for example <code>PhotoAppUserRole</code>.</li>
+<li>A role is not tied to one person. Anyone the role <em>trusts</em> can borrow it for a limited time. Borrowing a role is called <strong>assuming</strong> it.</li>
+<li>The role's <strong>trust policy</strong> says who is allowed to borrow it. Its <strong>permission policies</strong> say what the borrower can do.</li>
+</ul>
+<p><strong>What happens when a user asks the Identity Pool for access</strong></p>
+<ol>
+<li>The app sends the user's token (from the User Pool, Google, and so on).</li>
+<li>The Identity Pool checks the token and looks up or creates the user's identity ID.</li>
+<li>The Identity Pool chooses a role using rules you configured (see below).</li>
+<li>It asks AWS STS: "let this user assume this role". The technical name of that request is <code>AssumeRoleWithWebIdentity</code>.</li>
+<li>STS returns temporary credentials, by default valid for one hour.</li>
+<li>The app uses those credentials to call AWS. AWS checks every call against the role's permission policies.</li>
+</ol>
+<p><strong>How the role is chosen</strong></p>
+<div class="table-wrap wide"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>How it works</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default roles</td>
+<td>Every signed-in user gets one role; guests (if allowed) get another, more limited role</td>
+<td>All users get <code>AppUserRole</code></td>
+</tr>
+<tr>
+<td>Role from the token</td>
+<td>Each User Pool group can be linked to a role; the token says which group, and so which role</td>
+<td>Users in group <code>admin</code> get <code>AdminRole</code></td>
+</tr>
+<tr>
+<td>Rules</td>
+<td>You write "if this claim has this value, use this role" rules, checked in order</td>
+<td>Users whose <code>department</code> is <code>finance</code> get <code>FinanceDataRole</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>The trust policy: who may borrow the role</strong></p>
+<p>Each role used by an Identity Pool must say it trusts Cognito, and should be limited to <strong>your</strong> Identity Pool and to <strong>signed-in</strong> users. Without these conditions, another Identity Pool could borrow your role.</p>
+<pre><code class="language-json">&quot;Condition&quot;: {
+  &quot;StringEquals&quot;: { &quot;cognito-identity.amazonaws.com:aud&quot;: &quot;us-east-1:&lt;your-identity-pool-id&gt;&quot; },
+  &quot;ForAnyValue:StringLike&quot;: { &quot;cognito-identity.amazonaws.com:amr&quot;: &quot;authenticated&quot; }
+}
+</code></pre>
+<p>In plain words: "Only Cognito may hand out this role, only for this Identity Pool, and only to users who actually logged in."</p>
+<p><strong>One role, but each user sees only their own data</strong></p>
+<p>You do not need a separate role per user. A policy can include a placeholder that AWS fills in with the user's identity ID at the moment of each request:</p>
+<pre><code class="language-json">{
+  &quot;Effect&quot;: &quot;Allow&quot;,
+  &quot;Action&quot;: [&quot;s3:GetObject&quot;, &quot;s3:PutObject&quot;],
+  &quot;Resource&quot;: &quot;arn:aws:s3:::my-bucket/users/${cognito-identity.amazonaws.com:sub}/*&quot;
+}
+</code></pre>
+<p>This lets every user read and write only inside their own folder, <code>users/&lt;their-identity-id&gt;/</code>.</p>
+<p><strong>Using user details in permissions (ABAC)</strong></p>
+<p>Attribute-based access control means deciding access from the user's details. The Identity Pool can attach details such as <code>department</code> to the credentials as <strong>tags</strong>, and a policy can say "allow only if the user's department tag matches the resource's department tag".</p>
+
+    <nav class="pager" aria-label="Chapter navigation"><a class="prev" href="tokens-and-scopes.html"><span class="dir">&larr; Previous</span><span class="t">Tokens, scopes and resource servers</span></a><a class="next" href="access-control.html"><span class="dir">Next &rarr;</span><span class="t">How Cognito controls what a signed-in user can access</span></a></nav>
+
+    <footer class="sources">
+      <p><strong>Sources:</strong> <a href="https://aws.amazon.com/cognito/pricing/" target="_blank" rel="noopener">Amazon Cognito pricing</a> · <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-idp-cognito.html" target="_blank" rel="noopener">AgentCore Identity: Amazon Cognito</a> · <a href="https://thestack.technology/awss-new-cognito-pricing-complicated-potentially-costly" target="_blank" rel="noopener">The Stack on Cognito pricing</a>. Prices and features change; check AWS documentation before relying on specifics.</p>
+      <p>Views are my own and do not represent my employer.</p>
+    </footer>
+  </article>
+</div>
+</body>
+</html>
